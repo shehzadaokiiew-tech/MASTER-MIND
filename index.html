@@ -1,6 +1,11 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VIP Console</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Poppins:wght@400;600&display=swap');
-
 /* --- GLOBAL SETTINGS --- */
 * {
     box-sizing: border-box;
@@ -8,56 +13,42 @@
     padding: 0;
 }
 
-.stApp {
-    background: linear-gradient(135deg, #0b0c10, #1f1c2c, #162447);
-    color: #f0f0f0;
+body, .stApp {
     font-family: 'Poppins', sans-serif;
+    background: linear-gradient(135deg, #0b0c10, #1f1c2c, #162447);
+    color: #fff;
     overflow-x: hidden;
 }
 
-/* --- SNOW / PARTICLE NEON EFFECT --- */
-.stApp::before {
-    content: '';
-    position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%;
-    background-image: 
-        radial-gradient(3px 3px at 10% 20%, #ff00ff 50%, transparent 50%),
-        radial-gradient(4px 4px at 30% 60%, #00ffff 50%, transparent 50%),
-        radial-gradient(5px 5px at 70% 40%, #ffd700 50%, transparent 50%);
-    background-size: 200px 200px;
-    animation: neonParticles 15s linear infinite;
-    opacity: 0.7;
-    pointer-events: none;
-    z-index: 0;
-}
-
-@keyframes neonParticles {
-    0% { transform: translateY(0); }
-    100% { transform: translateY(300px); }
+.stApp {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
 }
 
 /* --- MAIN CONTAINER --- */
 .main-container {
-    position: relative;
     background: rgba(0,0,0,0.85);
-    border-radius: 30px;
-    padding: 40px;
-    box-shadow: 0 20px 60px rgba(255,0,255,0.4), 0 0 40px rgba(0,255,255,0.3);
+    border-radius: 20px;
+    padding: 30px;
+    width: 90%;
+    max-width: 1000px;
+    box-shadow: 0 20px 50px rgba(255,0,255,0.4), 0 0 30px rgba(0,255,255,0.3);
     border: 2px solid #ff00ff;
-    z-index: 1;
-    backdrop-filter: blur(15px);
+    backdrop-filter: blur(10px);
 }
 
 /* --- TITLE --- */
 .title-box {
     text-align: center;
-    margin-bottom: 35px;
+    margin-bottom: 30px;
 }
 
 .vip-title {
     font-family: 'Montserrat', sans-serif;
     font-weight: 900;
-    font-size: 5em;
+    font-size: 4em;
     text-transform: uppercase;
     background: linear-gradient(90deg, #ff00ff, #00ffff, #ffd700);
     background-clip: text;
@@ -70,7 +61,7 @@
 }
 
 .vip-subtitle {
-    font-weight: 700;
+    font-weight: 900;
     color: #ffd700;
     letter-spacing: 4px;
     font-size: 1.2em;
@@ -84,28 +75,30 @@
     100% { transform: scale(1); text-shadow: 0 0 15px #ff00ff, 0 0 20px #00ffff, 0 0 25px #ffd700; }
 }
 
-/* --- INPUT FIELDS --- */
+/* --- INPUT BOXES --- */
 .stTextInput label, .stTextArea label, .stNumberInput label, .stFileUploader label {
-    font-weight: 800 !important;
+    font-weight: 900 !important;
     color: #ff00ff !important;
     font-size: 1rem !important;
     text-transform: uppercase;
     letter-spacing: 1px;
 }
 
-.stTextInput input, .stTextArea textarea, .stNumberInput input {
+.stTextInput input, .stTextArea textarea, .stNumberInput input, .stFileUploader input {
     background: #1a1a1a !important;
     border: 2px solid #ff00ff !important;
     color: #fff !important;
-    font-weight: 600 !important;
-    border-radius: 20px !important;
+    font-weight: 900 !important;
+    border-radius: 12px !important;
     transition: all 0.3s ease !important;
-    padding: 14px !important;
+    padding: 10px !important;
+    width: 100%;
 }
 
-.stTextInput input:focus, .stTextArea textarea:focus, .stNumberInput input:focus {
+/* Focus effect */
+.stTextInput input:focus, .stTextArea textarea:focus, .stNumberInput input:focus, .stFileUploader input:focus {
     border-color: #00ffff !important;
-    box-shadow: 0 0 25px rgba(0,255,255,0.5) !important;
+    box-shadow: 0 0 20px rgba(0,255,255,0.5) !important;
     background: #111 !important;
     transform: translateY(-2px);
 }
@@ -117,11 +110,11 @@
     font-weight: 900;
     border-radius: 50px;
     border: none;
-    padding: 16px 30px;
+    padding: 16px 25px;
     text-transform: uppercase;
     letter-spacing: 2px;
     transition: all 0.3s ease;
-    font-size: 1.25em;
+    font-size: 1.2em;
     box-shadow: 0 10px 25px rgba(255,0,255,0.3), 0 0 15px rgba(0,255,255,0.2);
 }
 
@@ -143,7 +136,7 @@ div[data-testid="stVerticalBlock"] > div:nth-child(2) .stButton > button:hover {
     box-shadow: 0 15px 40px rgba(0,255,255,0.6), 0 0 25px rgba(0,255,255,0.5);
 }
 
-/* --- TERMINAL / CONSOLE --- */
+/* --- TERMINAL --- */
 .terminal-window {
     background: #000000;
     color: #39ff14;
@@ -171,6 +164,7 @@ div[data-testid="stVerticalBlock"] > div:nth-child(2) .stButton > button:hover {
     padding: 4px 0;
     border-bottom: 1px solid rgba(255,255,255,0.05);
     animation: lineGlow 2s ease-in-out infinite alternate;
+    font-weight: 900;
 }
 
 @keyframes lineGlow {
@@ -183,11 +177,60 @@ div[data-testid="stVerticalBlock"] > div:nth-child(2) .stButton > button:hover {
     display: inline-block;
     padding: 6px 22px;
     border-radius: 25px;
-    font-weight: bold;
+    font-weight: 900;
     font-size: 0.9em;
     margin-top: 12px;
     background: linear-gradient(90deg, #ff00ff, #00ffff, #ffd700);
     color: #000;
-    text-shadow: none;
 }
-                        </style>
+
+/* --- SCROLLING TERMINAL SIMULATION --- */
+@keyframes scrollTerminal {
+    0% { transform: translateY(100%); }
+    100% { transform: translateY(-100%); }
+}
+
+/* Example log animation class */
+.terminal-content {
+    display: flex;
+    flex-direction: column;
+    animation: scrollTerminal 60s linear infinite;
+}
+</style>
+</head>
+<body>
+<div class="stApp">
+    <div class="main-container">
+        <div class="title-box">
+            <h1 class="vip-title">VIP Console</h1>
+            <p class="vip-subtitle">Ultra High Level</p>
+        </div>
+
+        <!-- Input fields -->
+        <div class="stTextInput"><label>Message</label><input type="text"></div>
+        <div class="stTextInput"><label>File</label><input type="file"></div>
+        
+        <!-- Buttons -->
+        <div class="stButton"><button>Start</button></div>
+        <div class="stButton"><button>Stop</button></div>
+
+        <!-- Terminal -->
+        <div class="terminal-window">
+            <div class="terminal-content">
+                <div class="log-line">Initializing VIP System...</div>
+                <div class="log-line">Loading neon modules...</div>
+                <div class="log-line">Establishing secure connection...</div>
+                <div class="log-line">Welcome, VIP User!</div>
+                <div class="log-line">Executing script #001...</div>
+                <div class="log-line">System running at 99.9% efficiency.</div>
+                <div class="log-line">Loading additional modules...</div>
+                <div class="log-line">Monitoring network traffic...</div>
+                <div class="log-line">All systems stable.</div>
+                <div class="log-line">VIP Console ready for commands.</div>
+                <!-- Repeat or generate 500+ lines dynamically with JS if needed -->
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+                                  </html>
