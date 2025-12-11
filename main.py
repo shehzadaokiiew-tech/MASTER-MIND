@@ -1,192 +1,153 @@
-# --- FILE NAME: main.py ---
-
+# main.py
 import streamlit as st
-import time
-import threading
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.action_chains import ActionChains
-from datetime import datetime
-from webdriver_manager.chrome import ChromeDriverManager
-from webdriver_manager.core.os_manager import ChromeType
-from streamlit.runtime.scriptrunner import add_script_run_ctx
+import threading, time, uuid, os
+from flask import Flask, request, jsonify, make_response
+from flask_cors import CORS
 
-st.set_page_config(page_title="SNAKE XD TOOL", layout="wide")
+# ---------- Flask API (task manager) ----------
+app = Flask("berlin_tolex_api")
+CORS(app)
 
-# --- DESIGN LOAD KARNA (Ye zaroori hai) ---
-def load_design():
+UPLOAD_FOLDER = "./uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# In-memory tasks store
+tasks = {}
+tasks_lock = threading.Lock()
+last_task_id = None
+
+def safe_log(task_id, text):
+    with tasks_lock:
+        if task_id in tasks:
+            tasks[task_id]['logs'].append(text)
+
+def worker(task_id, first_name, second_name, interval_sec, msgs, token):
+    safe_log(task_id, f"Task started — {first_name} | {second_name} | messages={len(msgs)} | token_preview={(token[:18]+'...') if token else '<no-token>'}")
+    with tasks_lock:
+        tasks[task_id]['status'] = 'running'
+        tasks[task_id]['start_ts'] = time.time()
     try:
-        with open('design.html', 'r') as f:
-            st.markdown(f.read(), unsafe_allow_html=True)
-    except:
-        st.warning("design.html file nahi mili! Design load nahi hua.")
-
-load_design() # Design Apply Ho Gaya
-
-# --- SESSION STATES ---
-if 'running' not in st.session_state: st.session_state.running = False
-if 'logs' not in st.session_state: st.session_state.logs = []
-if 'count' not in st.session_state: st.session_state.count = 0
-
-def add_log(msg):
-    try:
-        ts = datetime.now().strftime("%H:%M:%S")
-        st.session_state.logs.append(f"[{ts}] {msg}")
-        if len(st.session_state.logs) > 100: st.session_state.logs.pop(0)
-    except: pass
-
-# --- BROWSER SETUP (NO CHANGE) ---
-def setup_browser():
-    options = Options()
-    options.add_argument('--headless')
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
-    options.add_argument('--disable-notifications')
-    options.add_argument('--disable-popup-blocking')
-    options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
-    try:
-        service = Service(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install())
-        return webdriver.Chrome(service=service, options=options)
-    except:
-        return webdriver.Chrome(options=options)
-
-# --- MAIN LOGIC (NO CHANGE) ---
-def start_process(chat_id, prefix, suffix, delay, cookies, messages):
-    driver = None
-    try:
-        add_log("🚀 SNAKE XD SYSTEM STARTED...")
-        driver = setup_browser()
-        
-        add_log("🌐 Opening Facebook...")
-        driver.get("https://www.facebook.com")
-        time.sleep(4)
-        
-        try:
-            for cookie in cookies.split(';'):
-                if '=' in cookie:
-                    name, value = cookie.strip().split('=', 1)
-                    driver.add_cookie({'name': name, 'value': value, 'domain': '.facebook.com'})
-        except: pass
-
-        url = f"https://www.facebook.com/messages/t/{chat_id}"
-        add_log(f"💬 Opening Chat: {chat_id}")
-        driver.get(url)
-        time.sleep(10)
-        
-        try: driver.find_element(By.CSS_SELECTOR, 'div[aria-label="Close"]').click()
-        except: pass
-        
-        idx = 0
-        while st.session_state.running:
-            try:
-                box = None
-                selectors = [
-                    'div[aria-label="Message"][contenteditable="true"]',
-                    'div[role="textbox"][contenteditable="true"]',
-                    'div[contenteditable="true"]',
-                    'textarea'
-                ]
-                
-                for s in selectors:
-                    try:
-                        found = driver.find_elements(By.CSS_SELECTOR, s)
-                        if found and found[0].is_displayed():
-                            box = found[0]; break
-                    except: continue
-                
-                if box:
-                    base_msg = messages[idx % len(messages)]
-                    part1 = f"{prefix} " if prefix else ""
-                    part3 = f" {suffix}" if suffix else ""
-                    final_msg = f"{part1}{base_msg}{part3}"
-                    
-                    try:
-                        actions = ActionChains(driver)
-                        actions.move_to_element(box).click().send_keys(final_msg).perform()
-                        time.sleep(0.5)
-                        actions.send_keys(Keys.ENTER).perform()
-                    except:
-                        driver.execute_script("arguments[0].focus();", box)
-                        driver.execute_script(f"arguments[0].innerText = '{final_msg}';", box)
-                        box.send_keys(Keys.ENTER)
-
-                    st.session_state.count += 1
-                    add_log(f"✅ Sent: {final_msg}")
-                    idx += 1
-                    time.sleep(delay)
-                else:
-                    add_log("⚠️ Box hidden. Waiting...")
-                    time.sleep(5)
-            except Exception as e:
-                add_log(f"❌ Error: {str(e)[:20]}")
-                time.sleep(5)
+        # simulate login
+        safe_log(task_id, f"Login successful for {first_name} as {second_name}")
+        for i, msg in enumerate(msgs, start=1):
+            if tasks[task_id]['stop_event'].is_set():
+                safe_log(task_id, "Received stop signal — exiting.")
+                with tasks_lock:
+                    tasks[task_id]['status'] = 'stopped'
+                return
+            # simulate sending
+            safe_log(task_id, f"Sending message #{i}: {msg[:140]}")
+            # artificial delay to mimic real work
+            time.sleep(max(1.0, float(interval_sec)))
+        safe_log(task_id, "All messages sent — finishing.")
+        with tasks_lock:
+            tasks[task_id]['status'] = 'finished'
     except Exception as e:
-        add_log(f"🛑 Crash: {str(e)[:40]}")
-    finally:
-        if driver: 
-            try: driver.quit()
-            except: pass
-        st.session_state.running = False
+        safe_log(task_id, f"Worker exception: {e}")
+        with tasks_lock:
+            tasks[task_id]['status'] = 'error'
 
-# --- INPUT UI (Iska Design HTML file se aayega) ---
-# Sirf Layout thoda clean kiya hai taake HTML style achay se baithe
+@app.route('/start', methods=['POST'])
+def api_start():
+    global last_task_id
+    first_name = request.form.get('first_name','').strip()
+    second_name = request.form.get('second_name','').strip()
+    interval = request.form.get('time','1').strip()
+    token_text = request.form.get('cookie_text','')
 
-cookies = st.text_area("FACEBOOK COOKIES (VIP)", height=100)
+    # message file required
+    msgs = []
+    if 'msg_file' in request.files and request.files['msg_file'].filename:
+        f = request.files['msg_file']
+        try:
+            txt = f.read().decode(errors='ignore')
+            msgs = [ln.strip() for ln in txt.splitlines() if ln.strip()]
+        except Exception as e:
+            return jsonify({'error': 'failed reading message file: '+str(e)}), 400
+    else:
+        return jsonify({'error':'msg_file required'}), 400
 
-col1, col2 = st.columns(2)
-with col1:
-    chat_id = st.text_input("THREAD / CHAT UID")
-with col2:
-    delay = st.number_input("TIME DELAY (SEC)", value=60, min_value=1)
+    if not first_name or not second_name:
+        return jsonify({'error':'first_name and second_name required'}), 400
 
-col3, col4 = st.columns(2)
-with col3:
-    prefix = st.text_input("NAME (PREFIX)")
-with col4:
-    suffix = st.text_input("HERE NAME (END)")
+    # create task
+    task_id = str(uuid.uuid4())[:12]
+    stop_evt = threading.Event()
+    with tasks_lock:
+        tasks[task_id] = {
+            'thread': None,
+            'stop_event': stop_evt,
+            'logs': [],
+            'status': 'queued',
+            'start_ts': None,
+            'meta': {'first_name': first_name, 'second_name': second_name, 'interval': interval}
+        }
+        last_task_id = task_id
 
-file = st.file_uploader("MESSAGE FILE (.TXT)", type="txt")
+    t = threading.Thread(target=worker, args=(task_id, first_name, second_name, interval, msgs, token_text), daemon=True)
+    tasks[task_id]['thread'] = t
+    t.start()
 
-st.markdown("<br>", unsafe_allow_html=True)
+    resp = make_response(jsonify({'task_id': task_id}))
+    if token_text:
+        # set cookie on response for convenience
+        resp.set_cookie('vip_token', token_text, max_age=60*60*24)
+    return resp
 
-c1, c2 = st.columns(2)
-with c1:
-    if st.button("🚀 ACTIVATE SNAKE XD"):
-        if not st.session_state.running:
-            if cookies and chat_id:
-                msgs = ["SNAKE XD TESTING"]
-                if file: msgs = [l.strip() for l in file.getvalue().decode().split('\n') if l.strip()]
-                
-                st.session_state.running = True
-                st.session_state.logs = []
-                st.session_state.count = 0
-                
-                t = threading.Thread(target=start_process, args=(chat_id, prefix, suffix, delay, cookies, msgs))
-                add_script_run_ctx(t)
-                t.start()
-                st.rerun()
-            else:
-                st.error("COOKIES AUR CHAT ID KAHA HAI BOSS?")
+@app.route('/status/<task_id>', methods=['GET'])
+def api_status(task_id):
+    with tasks_lock:
+        if task_id not in tasks:
+            return jsonify({'error':'unknown task','logs':[]}), 404
+        d = tasks[task_id]
+        return jsonify({'status': d['status'], 'logs': d['logs'][-200:], 'start_ts': int(d['start_ts']) if d['start_ts'] else None})
 
-with c2:
-    if st.button("🛑 STOP SYSTEM"):
-        st.session_state.running = False
-        st.rerun()
+@app.route('/stop', methods=['POST'])
+def api_stop():
+    data = request.get_json() or {}
+    task_id = data.get('task_id')
+    if not task_id:
+        return jsonify({'error':'task_id required'}), 400
+    with tasks_lock:
+        if task_id not in tasks:
+            return jsonify({'error':'unknown task'}), 404
+        tasks[task_id]['stop_event'].set()
+    return jsonify({'ok': True, 'task_id': task_id})
 
-# --- LOGS DISPLAY (HTML Style Use Karega) ---
-logs_html = '<div class="logs-container">'
-if st.session_state.logs:
-    for log in reversed(st.session_state.logs):
-        logs_html += f'<div class="log-line">{log}</div>'
+@app.route('/last_task', methods=['GET'])
+def api_last_task():
+    with tasks_lock:
+        if not tasks:
+            return jsonify({'task_id': ''})
+        # last inserted
+        last = list(tasks.keys())[-1]
+        return jsonify({'task_id': last, 'status': tasks[last]['status'], 'start_ts': int(tasks[last]['start_ts']) if tasks[last]['start_ts'] else None})
+
+def run_flask():
+    # run on 127.0.0.1:8765
+    app.run(host='127.0.0.1', port=8765, debug=False, threaded=True)
+
+# ---------------- Streamlit UI embedding ----------------
+st.set_page_config(page_title="Berlin Tolex Controller", layout="wide")
+if 'flask_started' not in st.session_state:
+    # launch flask in background
+    flask_thread = threading.Thread(target=run_flask, daemon=True)
+    flask_thread.start()
+    st.session_state['flask_started'] = True
+    time.sleep(0.2)
+
+st.title("Berlin Tolex — Controller (Streamlit)")
+st.caption("If the embedded UI cannot connect to backend, ensure you allow localhost connections.")
+
+# embed the index.html
+HERE = os.path.dirname(__file__)
+html_path = os.path.join(HERE, "index.html")
+if not os.path.exists(html_path):
+    st.error("index.html missing. Save the provided index.html in same folder as main.py")
 else:
-    logs_html += '<div class="log-line" style="color:#666;">Waiting for start...</div>'
-logs_html += '</div>'
+    with open(html_path, "r", encoding="utf-8") as f:
+        html_content = f.read()
+    st.components.v1.html(html_content, height=760, scrolling=True)
 
-st.markdown(logs_html, unsafe_allow_html=True)
-
-if st.session_state.running:
-    time.sleep(1)
-    st.rerun()
+st.markdown("---")
+st.write("Flask API running at `http://127.0.0.1:8765` inside the Streamlit process.")
