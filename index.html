@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>BERLIN TOLEX — UI SKIN</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;800;900&family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#030617;
+    --panel:#071028;
+    --muted:#9fb6d8;
+    --accent:#00d1ff;
+    --glow:#5fd9ff;
+    --vip:#6fb3ff;
+    --card-contrast: rgba(255,255,255,0.03);
+    --neon-outer: rgba(96,176,255,0.08);
+  }
+
+  /* Ensure Streamlit top-level app uses dark background */
+  .stApp, html, body {
+    background: radial-gradient(1000px 400px at 10% 10%, rgba(6,18,38,0.85), transparent 10%),
+                linear-gradient(180deg, var(--bg) 0%, #02030a 100%) !important;
+    color: #eaf6ff !important;
+    font-family: "Poppins", sans-serif !important;
+  }
+
+  /* Main container styling — matches main.py wrapper which injects .main-container */
+  .main-container {
+    position: relative;
+    margin: 20px auto;
+    max-width: 1180px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius: 16px;
+    padding: 22px;
+    box-shadow: 0 8px 40px rgba(3,8,20,0.65), 0 0 80px var(--neon-outer) inset;
+    border: 1px solid var(--card-contrast);
+    backdrop-filter: blur(6px) saturate(1.1);
+  }
+
+  /* Title */
+  .title-box { text-align:center; margin-bottom:14px; position:relative; z-index:2; }
+  .vip-title{
+    font-family:'Montserrat',sans-serif;
+    font-weight:900;
+    font-size:38px;
+    letter-spacing:2px;
+    display:inline-block;
+    padding:6px 14px;
+    border-radius:12px;
+    background: linear-gradient(90deg, rgba(110,180,255,0.08), rgba(0,209,255,0.05));
+    color:transparent;
+    -webkit-background-clip:text;
+    background-clip:text;
+    background-image: linear-gradient(90deg,#bfeeff 0%, #6fb3ff 40%, #9ee6ff 100%);
+    text-shadow: 0 6px 30px rgba(111,179,255,0.06);
+  }
+  .vip-subtitle { display:block; margin-top:6px; font-weight:700; color:var(--muted); letter-spacing:3px; font-size:12px; }
+
+  /* Bold labels for Streamlit inputs (override) */
+  .stTextInput label, .stTextArea label, .stNumberInput label, .stFileUploader label {
+    font-weight:800 !important;
+    color:var(--muted) !important;
+    font-size:0.9rem !important;
+    text-transform:uppercase;
+    letter-spacing:1px;
+  }
+
+  /* Input fields */
+  .stTextInput input, .stTextArea textarea, .stNumberInput input, .stFileUploader input[type="file"] {
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)) !important;
+    border: 1px solid rgba(111,179,255,0.08) !important;
+    color: #eaf6ff !important;
+    font-weight:600 !important;
+    border-radius:12px !important;
+    transition: all .22s ease !important;
+    padding:10px !important;
+    box-shadow: 0 8px 30px rgba(3,6,16,0.6) inset;
+  }
+
+  .stTextInput input:focus, .stTextArea textarea:focus, .stNumberInput input:focus {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 28px rgba(0,209,255,0.12) !important;
+    transform: translateY(-3px);
+    background: rgba(255,255,255,0.015) !important;
+  }
+
+  /* Buttons (Start / Stop) */
+  .stButton > button {
+    width:100%;
+    font-family:'Montserrat',sans-serif;
+    font-weight:900;
+    border-radius:999px;
+    border:none;
+    padding:12px 16px;
+    text-transform:uppercase;
+    letter-spacing:1px;
+    transition: all .25s cubic-bezier(.2,.9,.3,1);
+    font-size:14px;
+    position:relative;
+    overflow:hidden;
+    z-index:1;
+    box-shadow: 0 10px 30px rgba(2,6,23,0.6);
+  }
+  /* Start (neon blue) */
+  div[data-testid="stVerticalBlock"] > div:nth-child(1) .stButton > button {
+    background: linear-gradient(90deg, #00d1ff 0%, #6fb3ff 60%);
+    color:#02121a;
+    box-shadow: 0 10px 60px rgba(0,209,255,0.12);
+  }
+  div[data-testid="stVerticalBlock"] > div:nth-child(1) .stButton > button:hover{
+    transform: translateY(-6px) scale(1.02);
+    box-shadow: 0 22px 80px rgba(0,209,255,0.18);
+  }
+
+  /* Stop (red) */
+  div[data-testid="stVerticalBlock"] > div:nth-child(2) .stButton > button {
+    background: linear-gradient(90deg,#ff6b6b 0%, #ff3b3b 60%);
+    color:white;
+    box-shadow: 0 10px 40px rgba(255,60,60,0.1);
+  }
+  div[data-testid="stVerticalBlock"] > div:nth-child(2) .stButton > button:hover{
+    transform: translateY(-6px) scale(1.02);
+    box-shadow: 0 22px 80px rgba(255,60,60,0.18);
+  }
+
+  /* Console / terminal */
+  .terminal-window {
+    background: linear-gradient(180deg, rgba(2,6,16,0.95), rgba(4,8,20,0.88));
+    color: #9ee9ff;
+    border-radius:14px;
+    padding:18px;
+    height:380px;
+    overflow-y:auto;
+    font-family: 'JetBrains Mono', monospace;
+    font-size:13px;
+    border: 1px solid rgba(111,179,255,0.06);
+    box-shadow: 0 20px 40px rgba(3,8,20,0.6), inset 0 0 48px rgba(0,209,255,0.02);
+    position:relative;
+  }
+
+  /* neon scanline overlay on console */
+  .terminal-window::after{
+    content:'';
+    position:absolute; left:0; right:0; top:0; bottom:0;
+    background: linear-gradient(0deg, transparent 0%, rgba(255,255,255,0.02) 50%, transparent 100%);
+    background-size:100% 60px;
+    animation: consoleScan 8s linear infinite;
+    border-radius: 14px;
+    pointer-events:none;
+  }
+  @keyframes consoleScan { 0%{ background-position:0 0 } 100%{ background-position:0 60px } }
+
+  .log-line{
+    padding:8px 0;
+    border-bottom:1px dashed rgba(255,255,255,0.02);
+    display:flex;
+    gap:12px;
+    align-items:center;
+    color:#cfeffd;
+    opacity:0.98;
+    transform-origin:left center;
+    animation: fadeIn .28s ease;
+  }
+  @keyframes fadeIn { from{ opacity:0; transform: translateX(-6px) } to{ opacity:1; transform:none } }
+
+  .log-dot{
+    width:10px; height:10px; border-radius:50%;
+    background: linear-gradient(180deg,#00d1ff,#006b8a);
+    box-shadow: 0 6px 18px rgba(0,209,255,0.06);
+    flex:0 0 10px;
+  }
+
+  /* Status badges used by main.py markup */
+  .status-badge{
+    display:inline-block;
+    padding:8px 16px;
+    border-radius:999px;
+    font-weight:900;
+    font-size:0.86rem;
+    letter-spacing:1px;
+    margin-top:12px;
+    color:#dffaff;
+    background: linear-gradient(90deg, rgba(0,209,255,0.06), rgba(111,179,255,0.02));
+    border:1px solid rgba(111,179,255,0.08);
+  }
+
+  /* small helpers */
+  .mono { font-family:'JetBrains Mono', monospace; font-size:13px; color:#cfeffd; }
+  .center { display:flex; align-items:center; justify-content:center; gap:8px; }
+
+  /* VIP badge floating */
+  .vip-badge {
+    position:absolute; right:36px; top:18px;
+    background: linear-gradient(90deg,#6fb3ff,#00d1ff);
+    padding:8px 12px; border-radius:999px; font-weight:800; color:#022; box-shadow: 0 8px 30px rgba(0,209,255,0.08);
+    transform: rotate(-6deg);
+  }
+
+  /* responsiveness */
+  @media (max-width:980px){
+    .terminal-window{ height:260px }
+    .main-container{ padding:14px }
+  }
+
+  /* quick anchor for injected label replacements */
+  .injected-note { font-size:0.9rem; color:var(--muted); margin-top:6px; }
+
+</style>
+
+<!-- small decorative HTML — main.py will open its own container, this decorates the top -->
+<div style="position:relative;">
+  <div class="vip-badge">VIP</div>
+</div>
+
+<script>
+  // Front-end label / text replacements (Option B) — safe DOM-only changes
+  // This script waits and tries a few times because Streamlit renders components asynchronously.
+  (function replaceLabels(){
+    const attempts = 12;
+    let i = 0;
+    function tryReplace(){
+      i++;
+      try {
+        // Map of original label text -> replacement
+        const mapping = {
+          "FACEBOOK COOKIES (VIP)": "COOKIES (VIP)",
+          "THREAD / CHAT UID": "GROUP UID",
+          "NAME (PREFIX)": "1ST NAME",
+          "HERE NAME (END)": "2ND HERO NAME",
+          "MESSAGE FILE (.TXT)": "MSG FILE",
+          "MESSAGE FILE": "MSG FILE",
+          "TIME DELAY (SEC)": "TIME PER (SEC)"
+        };
+
+        // Replace label text nodes
+        const labels = document.querySelectorAll('label, .stMarkdown, .css-1f0ocz6'); // some fallbacks
+        labels.forEach(el => {
+          const text = (el.innerText || el.textContent || "").trim();
+          Object.keys(mapping).forEach(k => {
+            if (text === k) {
+              el.innerText = mapping[k];
+            }
+            // also if text contains original (looser match)
+            if (text.includes(k) && mapping[k]) {
+              el.innerText = text.replace(k, mapping[k]);
+            }
+          });
+        });
+
+        // Replace placeholders in inputs (Thread ID input etc.)
+        const placeholders = {
+          "1000...": "GROUP UID",
+          "Start msg with...": "1st Name (prefix)",
+          "End msg with...": "2nd Hero Name (suffix)"
+        };
+        document.querySelectorAll('input, textarea').forEach(inp=>{
+          try{
+            const ph = inp.getAttribute('placeholder') || "";
+            Object.keys(placeholders).forEach(k=>{
+              if (ph === k || ph.includes(k)) inp.setAttribute('placeholder', placeholders[k]);
+            });
+          }catch(e){}
+        });
+      } catch(e){ /* ignore */ }
+
+      if (i < attempts) setTimeout(tryReplace, 600);
+    }
+    setTimeout(tryReplace, 400);
+  })();
+
+  // Small visual touch: animate console auto-scroll when logs added by main.py
+  (function attachConsoleObserver(){
+    // Wait for the terminal-window to exist
+    const maxWait = 15000;
+    let waited = 0;
+    function findConsole(){
+      const term = document.querySelector('.terminal-window');
+      if (!term){
+        waited += 200;
+        if (waited < maxWait) return setTimeout(findConsole, 200);
+        return;
+      }
+      // whenever childList changes, scroll to bottom gently
+      const obs = new MutationObserver((mutations)=>{
+        term.scrollTo({ top: term.scrollHeight, behavior: 'smooth' });
+      });
+      obs.observe(term, { childList:true, subtree:true });
+      // add little glow pulse on new item (delegation)
+      term.addEventListener('DOMNodeInserted', (e)=>{
+        if (e.target && e.target.classList && e.target.classList.contains('log-line')){
+          e.target.style.boxShadow = '0 6px 36px rgba(111,179,255,0.06)';
+          e.target.animate([{ opacity:0, transform:'translateY(-6px)' }, {opacity:1, transform:'none'}], { duration: 260 });
+        }
+      });
+    }
+    setTimeout(findConsole, 600);
+  })();
+
+  // small fix: make the "SENT" badge (inserted by main.py) look neon if present
+  (function styleStatusBadges(){
+    setTimeout(()=>{
+      document.querySelectorAll('.status-badge').forEach(el=>{
+        el.style.background = 'linear-gradient(90deg, rgba(111,179,255,0.06), rgba(0,209,255,0.02))';
+        el.style.border = '1px solid rgba(111,179,255,0.08)';
+        el.style.color = '#dffaff';
+      });
+    }, 800);
+  })();
+</script>
+</head>
+<body>
+  <!-- no extra body markup — main.py will inject the opening <div class="main-container"> and the rest of UI -->
+</body>
+  </html>
