@@ -8,8 +8,8 @@
 
 .stApp {
     font-family: 'Poppins', sans-serif;
-    background: linear-gradient(135deg, #0b0c10, #1f1c2c, #162447);
-    color: #fff;
+    background: #ffffff; /* White background */
+    color: #000000;
     display: flex;
     justify-content: center;
     padding: 20px;
@@ -19,12 +19,11 @@
 .main-container {
     width: 90%;
     max-width: 1000px;
-    background: rgba(0,0,0,0.85);
+    background: rgba(245, 245, 245, 0.95);
     border-radius: 20px;
     padding: 25px;
-    box-shadow: 0 15px 50px rgba(255,0,255,0.4), 0 0 30px rgba(0,255,255,0.3);
-    border: 2px solid #ff00ff;
-    backdrop-filter: blur(10px);
+    box-shadow: 0 15px 40px rgba(0, 150, 255, 0.3);
+    border: 2px solid #0096ff;
 }
 
 /* --- TITLE --- */
@@ -35,52 +34,42 @@
 .vip-title {
     font-family: 'Montserrat', sans-serif;
     font-weight: 900;
-    font-size: 3.5em;
+    font-size: 3em;
+    color: #0096ff;
     text-transform: uppercase;
-    background: linear-gradient(90deg, #ff00ff, #00ffff, #ffd700);
-    background-clip: text;
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    letter-spacing: -1px;
-    text-shadow: 0 0 15px #ff00ff, 0 0 20px #00ffff, 0 0 25px #ffd700;
-    animation: glowPulse 2s infinite alternate;
+    text-shadow: 0 0 8px #00f, 0 0 12px #00f5ff;
 }
 .vip-subtitle {
-    font-weight: 900;
+    font-weight: 700;
     font-size: 1.1em;
-    letter-spacing: 3px;
-    color: #ffd700;
-    text-shadow: 0 0 10px #ff00ff, 0 0 15px #00ffff;
-}
-
-@keyframes glowPulse {
-    0% { transform: scale(1); text-shadow: 0 0 15px #ff00ff, 0 0 20px #00ffff, 0 0 25px #ffd700; }
-    50% { transform: scale(1.05); text-shadow: 0 0 25px #ff00ff, 0 0 30px #00ffff, 0 0 35px #ffd700; }
-    100% { transform: scale(1); text-shadow: 0 0 15px #ff00ff, 0 0 20px #00ffff, 0 0 25px #ffd700; }
+    letter-spacing: 2px;
+    color: #0077cc;
 }
 
 /* --- INPUT BOXES --- */
 .stTextInput label, .stTextArea label, .stNumberInput label, .stFileUploader label {
     font-weight: 900 !important;
-    color: #ff00ff !important;
+    color: #0077ff !important;
     font-size: 0.95rem !important;
     text-transform: uppercase;
     letter-spacing: 1px;
 }
+
 .stTextInput input, .stTextArea textarea, .stNumberInput input, .stFileUploader input {
-    background: #1a1a1a !important;
-    border: 2px solid #ff00ff !important;
-    color: #fff !important;
-    font-weight: 900 !important;
+    background: #f0f8ff !important;
+    border: 2px solid #0096ff !important;
+    color: #000 !important;
+    font-weight: 700 !important;
     border-radius: 12px !important;
     padding: 10px !important;
     width: 100%;
     transition: all 0.3s ease !important;
 }
+
 .stTextInput input:focus, .stTextArea textarea:focus, .stNumberInput input:focus, .stFileUploader input:focus {
-    border-color: #00ffff !important;
-    box-shadow: 0 0 15px rgba(0,255,255,0.5) !important;
-    background: #111 !important;
+    border-color: #00c0ff !important;
+    box-shadow: 0 0 12px rgba(0,192,255,0.5) !important;
+    background: #e0f7ff !important;
 }
 
 /* --- BUTTONS --- */
@@ -93,44 +82,48 @@
     padding: 14px 20px;
     text-transform: uppercase;
     font-size: 1.1em;
-    box-shadow: 0 5px 20px rgba(255,0,255,0.3);
+    box-shadow: 0 5px 20px rgba(0,150,255,0.3);
     transition: all 0.3s ease;
 }
+
 div[data-testid="stVerticalBlock"] > div:nth-child(1) .stButton > button {
-    background: linear-gradient(45deg, #ff00ff, #ff0080);
+    background: linear-gradient(45deg, #0077ff, #00c0ff);
+    color: #fff;
 }
 div[data-testid="stVerticalBlock"] > div:nth-child(1) .stButton > button:hover {
     transform: translateY(-3px) scale(1.05);
-    box-shadow: 0 10px 25px rgba(255,0,255,0.5);
+    box-shadow: 0 10px 25px rgba(0,150,255,0.6);
 }
+
 div[data-testid="stVerticalBlock"] > div:nth-child(2) .stButton > button {
-    background: linear-gradient(45deg, #00ffff, #0080ff);
+    background: linear-gradient(45deg, #0055cc, #00aaff);
+    color: #fff;
 }
 div[data-testid="stVerticalBlock"] > div:nth-child(2) .stButton > button:hover {
     transform: translateY(-3px) scale(1.05);
-    box-shadow: 0 10px 25px rgba(0,255,255,0.5);
+    box-shadow: 0 10px 25px rgba(0,170,255,0.6);
 }
 
 /* --- TERMINAL --- */
 .terminal-window {
     background: #000000;
-    color: #39ff14;
+    color: #00c0ff;
     border-radius: 20px;
     padding: 20px;
     height: 350px;
     overflow-y: auto;
     font-family: 'Courier New', monospace;
     font-size: 13px;
-    border: 2px solid #00ffff;
-    box-shadow: inset 0 0 20px rgba(0,255,255,0.5);
+    border: 2px solid #00c0ff;
+    box-shadow: inset 0 0 15px rgba(0,192,255,0.5);
     margin-top: 25px;
 }
 
 /* Log lines */
 .log-line {
     padding: 4px 0;
-    font-weight: 900;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
+    font-weight: 700;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
 }
 
 /* Scrollbar for console */
@@ -138,11 +131,11 @@ div[data-testid="stVerticalBlock"] > div:nth-child(2) .stButton > button:hover {
     width: 8px;
 }
 .terminal-window::-webkit-scrollbar-thumb {
-    background: #00ffff;
+    background: #00c0ff;
     border-radius: 4px;
 }
 .terminal-window::-webkit-scrollbar-track {
-    background: #111;
+    background: #f5f5f5;
 }
 
 /* Status Badge */
@@ -150,9 +143,9 @@ div[data-testid="stVerticalBlock"] > div:nth-child(2) .stButton > button:hover {
     display: inline-block;
     padding: 6px 18px;
     border-radius: 20px;
-    font-weight: 900;
+    font-weight: 700;
     font-size: 0.85em;
-    background: linear-gradient(90deg, #ff00ff, #00ffff, #ffd700);
-    color: #000;
+    background: linear-gradient(90deg, #0077ff, #00c0ff);
+    color: #fff;
 }
-                                </style>
+    </style>
