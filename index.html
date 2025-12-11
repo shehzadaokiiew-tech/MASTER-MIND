@@ -1,193 +1,162 @@
+<!-- FILE NAME: design.html -->
+
+<!-- 1. GOOGLE FONTS (Vip Look ke liye) -->
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Poppins:wght@400;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;700&display=swap');
 
-    /* --- GLOBAL SETTINGS --- */
-    * {
-        box-sizing: border-box;
-    }
-
+    /* --- BACKGROUND SETTINGS --- */
     .stApp {
-        background: #ffffff;
-        color: #333;
-        font-family: 'Poppins', sans-serif;
-    }
-
-    /* --- SNOW ANIMATION --- */
-    .snowflake {
-        position: fixed;
-        top: 0;
-        z-index: 9999;
-        color: #dbe4eb;
-        font-size: 1em;
-        font-family: Arial, sans-serif;
-        text-shadow: 0 0 5px #000;
-        animation: fall linear infinite;
-        pointer-events: none;
-    }
-
-    @keyframes fall {
-        0% { transform: translateY(-10vh) translateX(0) rotate(0deg); opacity: 1; }
-        100% { transform: translateY(100vh) translateX(20px) rotate(360deg); opacity: 0.3; }
-    }
-
-    /* Generate snowflakes using pseudo-elements not possible easily in simple CSS without JS, 
-       so we use a subtle background animation instead for performance */
-    .stApp::before {
-        content: '';
-        position: fixed;
-        top: 0; left: 0; width: 100%; height: 100%;
+        background-color: #000000;
         background-image: 
-            radial-gradient(4px 4px at 10% 20%, #b3e5fc 50%, transparent 50%),
-            radial-gradient(3px 3px at 30% 60%, #b3e5fc 50%, transparent 50%),
-            radial-gradient(5px 5px at 70% 40%, #81d4fa 50%, transparent 50%),
-            radial-gradient(4px 4px at 90% 80%, #4fc3f7 50%, transparent 50%);
-        background-size: 200px 200px;
-        animation: snowAnim 10s linear infinite;
-        opacity: 0.6;
-        pointer-events: none;
-        z-index: 0;
+            linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)),
+            url('https://i.pinimg.com/originals/2b/2b/3b/2b2b3b647037748460ce87396a405a76.gif'); /* Matrix/Tech Background */
+        background-size: cover;
+        background-attachment: fixed;
+        background-position: center;
+        color: #00ff00;
+        font-family: 'Rajdhani', sans-serif;
     }
 
-    @keyframes snowAnim {
-        0% { transform: translateY(0); }
-        100% { transform: translateY(200px); }
-    }
+    /* --- HIDE DEFAULT STREAMLIT HEADER --- */
+    header, footer {visibility: hidden;}
+    #MainMenu {visibility: hidden;}
 
-    /* --- MAIN CONTAINER --- */
-    .main-container {
-        position: relative;
-        background: rgba(255, 255, 255, 0.9);
-        border-radius: 20px;
-        padding: 30px;
-        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-        border: 2px solid #eee;
-        z-index: 1;
-        backdrop-filter: blur(10px);
-    }
-
-    /* --- TITLE (SNAKE XD) --- */
-    .title-box {
+    /* --- VIP TITLE HEADER --- */
+    .vip-header {
         text-align: center;
-        margin-bottom: 25px;
+        padding: 40px;
+        background: rgba(0, 0, 0, 0.6);
+        border: 2px solid #00ff00;
+        border-radius: 20px;
+        margin-bottom: 30px;
+        box-shadow: 0 0 30px rgba(0, 255, 0, 0.2), inset 0 0 20px rgba(0, 255, 0, 0.1);
+        backdrop-filter: blur(5px);
+        animation: glow 2s infinite alternate;
     }
 
     .vip-title {
-        font-family: 'Montserrat', sans-serif;
+        font-family: 'Orbitron', sans-serif;
+        font-size: 3.5rem;
         font-weight: 900;
-        font-size: 4em;
-        text-transform: uppercase;
-        background: linear-gradient(45deg, #000000, #434343);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        letter-spacing: -2px;
-        text-shadow: 3px 3px 0px rgba(0,0,0,0.1);
+        color: #fff;
+        text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00;
         margin: 0;
-        animation: pulse 3s infinite;
+        letter-spacing: 5px;
     }
+
+    .vip-tag {
+        color: #00ff00;
+        font-size: 1.2rem;
+        font-weight: bold;
+        letter-spacing: 8px;
+        margin-top: 10px;
+        text-transform: uppercase;
+    }
+
+    @keyframes glow {
+        from { border-color: #00aa00; box-shadow: 0 0 10px #00aa00; }
+        to { border-color: #00ff00; box-shadow: 0 0 30px #00ff00; }
+    }
+
+    /* --- INPUT BOXES (TEXTAREAS & INPUTS) --- */
+    /* Hum Python ke inputs ko yahan zabardasti design kar rahe hain */
     
-    .vip-subtitle {
-        font-weight: 700;
-        color: #ff0055;
-        letter-spacing: 3px;
-        font-size: 1em;
-        text-transform: uppercase;
+    /* Input Box Background & Border */
+    .stTextInput > div > div > input,
+    .stNumberInput > div > div > input,
+    .stTextArea > div > div > textarea {
+        background-color: rgba(10, 10, 10, 0.9) !important;
+        border: 2px solid #333 !important;
+        color: #00ff00 !important;
+        font-family: 'Rajdhani', sans-serif !important;
+        font-size: 18px !important;
+        font-weight: bold !important;
+        border-radius: 10px !important;
+        transition: 0.3s all;
     }
 
-    @keyframes pulse {
-        0% { transform: scale(1); }
-        50% { transform: scale(1.02); }
-        100% { transform: scale(1); }
+    /* Jab Box par click karein */
+    .stTextInput > div > div > input:focus,
+    .stNumberInput > div > div > input:focus,
+    .stTextArea > div > div > textarea:focus {
+        border-color: #00ff00 !important;
+        box-shadow: 0 0 20px rgba(0, 255, 0, 0.4) !important;
+        background-color: #000 !important;
     }
 
-    /* --- INPUT FIELDS --- */
-    /* Bold Labels */
-    .stTextInput label, .stTextArea label, .stNumberInput label, .stFileUploader label {
-        font-weight: 800 !important;
-        color: #000 !important;
-        font-size: 0.9rem !important;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-
-    /* Input Boxes */
-    .stTextInput input, .stTextArea textarea, .stNumberInput input {
-        background: #f8f9fa !important;
-        border: 2px solid #e0e0e0 !important;
-        color: #000 !important;
-        font-weight: 600 !important;
-        border-radius: 12px !important;
-        transition: all 0.3s ease !important;
-        padding: 10px !important;
-    }
-
-    .stTextInput input:focus, .stTextArea textarea:focus, .stNumberInput input:focus {
-        border-color: #ff0055 !important;
-        box-shadow: 0 0 15px rgba(255, 0, 85, 0.2) !important;
-        background: #fff !important;
-        transform: translateY(-2px);
+    /* Labels (Jo likha hota hai 'Cookies' wagera) */
+    .stTextInput label, .stNumberInput label, .stTextArea label, .stFileUploader label {
+        color: #ffffff !important;
+        font-family: 'Orbitron', sans-serif !important;
+        font-size: 16px !important;
+        text-shadow: 0 0 5px #000;
+        margin-bottom: 5px !important;
     }
 
     /* --- BUTTONS --- */
     .stButton > button {
         width: 100%;
-        font-family: 'Montserrat', sans-serif;
-        font-weight: 800;
-        border-radius: 50px;
-        border: none;
-        padding: 15px 20px;
+        background: linear-gradient(90deg, #000, #111);
+        border: 2px solid #00ff00;
+        color: #00ff00;
+        font-family: 'Orbitron', sans-serif;
+        font-size: 20px;
+        font-weight: bold;
+        padding: 15px;
+        border-radius: 12px;
         text-transform: uppercase;
-        letter-spacing: 1px;
-        transition: all 0.3s ease;
-        font-size: 1.1em;
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        cursor: pointer;
+        transition: 0.3s;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.5);
     }
 
-    /* Start Button */
-    div[data-testid="stVerticalBlock"] > div:nth-child(1) .stButton > button {
-        background: linear-gradient(45deg, #11998e, #38ef7d);
-        color: white;
-    }
-    div[data-testid="stVerticalBlock"] > div:nth-child(1) .stButton > button:hover {
-        transform: translateY(-3px) scale(1.02);
-        box-shadow: 0 10px 25px rgba(56, 239, 125, 0.4);
+    .stButton > button:hover {
+        background: #00ff00;
+        color: #000;
+        box-shadow: 0 0 30px #00ff00;
+        transform: translateY(-3px);
     }
 
-    /* Stop Button */
+    /* Stop Button (Red) - Specific targeting */
     div[data-testid="stVerticalBlock"] > div:nth-child(2) .stButton > button {
-        background: linear-gradient(45deg, #cb2d3e, #ef473a);
-        color: white;
+        border-color: #ff0033;
+        color: #ff0033;
     }
     div[data-testid="stVerticalBlock"] > div:nth-child(2) .stButton > button:hover {
-        transform: translateY(-3px) scale(1.02);
-        box-shadow: 0 10px 25px rgba(239, 71, 58, 0.4);
+        background: #ff0033;
+        color: #fff;
+        box-shadow: 0 0 30px #ff0033;
     }
 
-    /* --- TERMINAL / LOGS --- */
-    .terminal-window {
-        background: #1a1a1a;
-        color: #00ff00;
+    /* --- LOGS TERMINAL --- */
+    .logs-container {
+        background-color: rgba(0, 0, 0, 0.85);
+        border: 2px solid #00ff00;
         border-radius: 15px;
         padding: 20px;
         height: 350px;
         overflow-y: auto;
         font-family: 'Courier New', monospace;
-        font-size: 13px;
-        border: 2px solid #333;
+        margin-top: 25px;
         box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
-        margin-top: 20px;
     }
 
     .log-line {
-        padding: 3px 0;
-        border-bottom: 1px solid rgba(255,255,255,0.1);
+        padding: 5px;
+        border-bottom: 1px dashed #333;
+        font-size: 14px;
+        color: #00ff00;
     }
+    
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 10px; }
+    ::-webkit-scrollbar-track { background: #111; }
+    ::-webkit-scrollbar-thumb { background: #00ff00; border-radius: 5px; }
 
-    .status-badge {
-        display: inline-block;
-        padding: 5px 15px;
-        border-radius: 20px;
-        font-weight: bold;
-        font-size: 0.8em;
-        margin-top: 10px;
-    }
 </style>
+
+<!-- HTML CONTENT JO UPAR SHOW HOGA -->
+<div class="vip-header">
+    <h1 class="vip-title">SNAKE XD</h1>
+    <div class="vip-tag">PREMIUM AUTOMATION TOOL</div>
+        </div>
