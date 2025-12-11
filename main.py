@@ -1,16 +1,19 @@
 import streamlit as st
 import time
 import threading
+import os
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 from datetime import datetime
+from webdriver_manager.chrome import ChromeDriverManager
+from webdriver_manager.core.os_manager import ChromeType
 
-# --- FIX: Import for Threading Context ---
+# --- FIX THREADING ERROR ---
 from streamlit.runtime.scriptrunner import add_script_run_ctx
 
-# Page Config
 st.set_page_config(page_title="CLOUD E2EE", layout="wide")
 
 # Load HTML
@@ -23,66 +26,89 @@ def load_html():
 
 st.markdown(load_html(), unsafe_allow_html=True)
 
-# Session States Initialization
+# Session States
 if 'running' not in st.session_state: st.session_state.running = False
 if 'logs' not in st.session_state: st.session_state.logs = []
 if 'count' not in st.session_state: st.session_state.count = 0
 
-# --- SAFE LOGGING FUNCTION ---
+# --- LOGGING ---
 def add_log(msg):
     try:
-        if 'logs' not in st.session_state:
-            st.session_state.logs = []
-        
+        if 'logs' not in st.session_state: st.session_state.logs = []
         ts = datetime.now().strftime("%H:%M:%S")
         st.session_state.logs.append(f"[{ts}] {msg}")
-        
-        if len(st.session_state.logs) > 100:
-            st.session_state.logs.pop(0)
-    except:
-        pass
+        if len(st.session_state.logs) > 100: st.session_state.logs.pop(0)
+    except: pass
 
-# --- BROWSER SETUP ---
+# --- ADVANCED BROWSER SETUP (CRASH FIX) ---
 def setup_browser():
     options = Options()
-    options.add_argument('--headless=new')
+    
+    # Ye saare Flags zaroori hain hosting ke liye
+    options.add_argument('--headless') # New mode hata diya, stability ke liye old use kiya
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument('--disable-gpu')
-    return webdriver.Chrome(options=options)
+    options.add_argument('--disable-software-rasterizer')
+    options.add_argument('--remote-debugging-port=9222')
+    
+    # User Agent Check
+    options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
 
-# --- AUTOMATION LOGIC ---
+    # Try 1: Automatic Driver Management (Best for Cloud)
+    try:
+        service = Service(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install())
+        return webdriver.Chrome(service=service, options=options)
+    except:
+        pass
+        
+    # Try 2: Manual Path Finding (Backup)
+    try:
+        paths = [
+            "/usr/bin/chromium", 
+            "/usr/bin/chromium-browser", 
+            "/usr/bin/google-chrome"
+        ]
+        for p in paths:
+            if os.path.exists(p):
+                options.binary_location = p
+                break
+        return webdriver.Chrome(options=options)
+    except Exception as e:
+        add_log(f"Browser Setup Failed: {str(e)}")
+        raise e
+
+# --- PROCESS LOGIC ---
 def start_process(chat_id, prefix, delay, cookies, messages):
     driver = None
     try:
-        add_log("🚀 Starting Process...")
+        add_log("🚀 Starting Process (v2)...")
         driver = setup_browser()
         
         add_log("🌐 Opening Facebook...")
         driver.get("https://www.facebook.com")
-        time.sleep(3)
+        time.sleep(5) # Thoda time badhaya taaki crash na ho
         
-        # Cookies Setup
-        add_log("🍪 Setting Cookies...")
+        # Cookies
+        add_log("🍪 Injecting Cookies...")
         try:
             for cookie in cookies.split(';'):
                 if '=' in cookie:
                     name, value = cookie.strip().split('=', 1)
                     driver.add_cookie({'name': name, 'value': value, 'domain': '.facebook.com'})
         except:
-            add_log("❌ Cookie Error!")
+            add_log("❌ Invalid Cookies!")
 
-        # Go to Chat
         url = f"https://www.facebook.com/messages/t/{chat_id}"
-        add_log(f"💬 Going to Chat: {chat_id}")
+        add_log(f"💬 Opening Chat...")
         driver.get(url)
-        time.sleep(10)
+        time.sleep(15) # Wait for chat load
         
         idx = 0
         while st.session_state.running:
             try:
                 box = None
-                selectors = ['div[contenteditable="true"]', 'textarea', 'div[aria-label="Message"]']
+                selectors = ['div[contenteditable="true"]', 'textarea', 'div[role="textbox"]']
                 
                 for s in selectors:
                     try:
@@ -94,32 +120,37 @@ def start_process(chat_id, prefix, delay, cookies, messages):
                     msg = messages[idx % len(messages)]
                     final_msg = f"{prefix} {msg}" if prefix else msg
                     
-                    driver.execute_script("arguments[0].focus();", box)
-                    box.send_keys(final_msg)
-                    time.sleep(0.5)
-                    box.send_keys(Keys.ENTER)
-                    
-                    st.session_state.count += 1
-                    add_log(f"✅ Sent: {final_msg}")
-                    idx += 1
-                    time.sleep(delay)
+                    try:
+                        driver.execute_script("arguments[0].focus();", box)
+                        box.send_keys(final_msg)
+                        time.sleep(0.5)
+                        box.send_keys(Keys.ENTER)
+                        
+                        st.session_state.count += 1
+                        add_log(f"✅ Sent: {final_msg}")
+                        idx += 1
+                        time.sleep(delay)
+                    except:
+                        add_log("⚠️ Failed to type. Retrying...")
                 else:
-                    add_log("⚠️ Box not found. Refreshing...")
+                    add_log("⚠️ Chat box not found. Refreshing...")
                     driver.refresh()
-                    time.sleep(10)
+                    time.sleep(15)
                     
             except Exception as e:
-                add_log(f"❌ Error: {str(e)[:30]}")
+                add_log(f"❌ Error: {str(e)[:40]}")
                 time.sleep(5)
                 
     except Exception as e:
-        add_log(f"🛑 FATAL ERROR: {str(e)}")
+        add_log(f"🛑 CRASH: {str(e)}")
     finally:
-        if driver: driver.quit()
+        if driver: 
+            try: driver.quit()
+            except: pass
         st.session_state.running = False
 
-# --- UI LAYOUT ---
-st.markdown('<div class="main-container"><div class="header-title">LORD DEVIL CLOUD</div></div>', unsafe_allow_html=True)
+# --- UI ---
+st.markdown('<div class="main-container"><div class="header-title">LORD DEVIL v2</div></div>', unsafe_allow_html=True)
 
 col1, col2 = st.columns(2)
 with col1:
@@ -145,21 +176,18 @@ with c1:
             st.session_state.logs = []
             st.session_state.count = 0
             
-            # Thread creation with Fix
             t = threading.Thread(target=start_process, args=(chat_id, prefix, delay, cookies, msgs))
-            add_script_run_ctx(t) # YEH LINE ZAROORI HAI
+            add_script_run_ctx(t)
             t.start()
-            
             st.rerun()
         else:
-            st.warning("Cookies & Chat ID Required!")
+            st.warning("Data Missing!")
 
 with c2:
     if st.button("⏹ STOP", disabled=not st.session_state.running):
         st.session_state.running = False
         st.rerun()
 
-# Logs Display
 st.markdown(f"**Status:** {'RUNNING' if st.session_state.running else 'STOPPED'} | **Sent:** {st.session_state.count}")
 
 try:
@@ -169,10 +197,8 @@ try:
             logs_html += f'<div class="log-line">{log}</div>'
         logs_html += '</div>'
         st.markdown(logs_html, unsafe_allow_html=True)
-except:
-    st.write("Initializing logs...")
+except: pass
 
-# Auto Refresh logic at the END
 if st.session_state.running:
     time.sleep(1)
     st.rerun()
