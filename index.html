@@ -1,5 +1,4 @@
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Poppins:wght@400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
 
 /* --- GLOBAL --- */
 * {
@@ -7,9 +6,9 @@
 }
 
 .stApp {
-    font-family: 'Poppins', sans-serif;
-    background: #ffffff; /* white background */
-    color: #000;
+    font-family: 'Orbitron', sans-serif;
+    background: #0d0d1a; /* Very dark, deep space background */
+    color: #e6e6ff; /* Off-white for general text */
     display: flex;
     justify-content: center;
     padding: 20px;
@@ -18,128 +17,148 @@
 /* --- MAIN CONTAINER --- */
 .main-container {
     width: 90%;
-    max-width: 1000px;
-    background: #f5f7fa;
-    border-radius: 25px;
-    padding: 30px;
-    box-shadow: 0 15px 40px rgba(0, 150, 255, 0.3);
-    border: 2px solid #0096ff;
+    max-width: 1100px;
+    background: #1a1a2e; /* Darker container background */
+    border-radius: 15px; /* Slightly less rounded */
+    padding: 40px;
+    /* Neon Blue/Magenta Border and Shadow */
+    box-shadow: 0 0 10px #ff00ff, 0 0 20px #00ffff, inset 0 0 5px #333;
+    border: 3px solid #ff00ff;
 }
 
 /* --- TITLE --- */
 .title-box {
     text-align: center;
-    margin-bottom: 25px;
+    margin-bottom: 35px;
 }
 
 .vip-title {
-    font-family: 'Montserrat', sans-serif;
+    font-family: 'Orbitron', sans-serif;
     font-weight: 900;
-    font-size: 3em;
+    font-size: 3.5em;
     text-transform: uppercase;
-    color: #0077ff;
-    text-shadow: 0 0 10px #00c0ff, 0 0 20px #0077ff;
+    color: #00ffff; /* Cyberpunk Cyan */
+    /* Intense Holographic Text Glow */
+    text-shadow: 0 0 5px #ff00ff, 0 0 15px #ff00ff, 0 0 30px #00ffff, 0 0 40px #00ffff;
+    letter-spacing: 5px;
 }
 
 .vip-subtitle {
     font-weight: 700;
-    font-size: 1.2em;
-    letter-spacing: 2px;
-    color: #0055cc;
+    font-size: 1.4em;
+    letter-spacing: 4px;
+    color: #ff00ff; /* Electric Magenta */
+    margin-top: 5px;
 }
 
 /* --- INPUT / FILE / MESSAGE BOXES --- */
 .stTextInput label, .stTextArea label, .stNumberInput label, .stFileUploader label {
-    font-weight: 900 !important;
-    color: #0077ff !important;
-    font-size: 0.95rem !important;
+    font-weight: 700 !important;
+    color: #00ffff !important; /* Cyan Label */
+    font-size: 1.0rem !important;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 2px;
 }
 
-/* Modern VIP input shape with gradient glow */
+/* Futuristic Input Design */
 .stTextInput input, .stTextArea textarea, .stNumberInput input, .stFileUploader input {
-    background: #e6f0ff !important;
-    border: 2px solid #0096ff !important;
-    border-radius: 20px !important;
-    color: #000 !important;
-    font-weight: 700 !important;
-    padding: 12px !important;
+    background: #111122 !important; /* Almost black input field */
+    border: 2px solid #ff00ff !important; /* Magenta Border */
+    border-radius: 8px !important; /* Sharper corners */
+    color: #e6e6ff !important;
+    font-weight: 400 !important;
+    font-family: 'Share Tech Mono', monospace; /* Monospace font for inputs */
+    padding: 15px !important;
     width: 100%;
-    transition: all 0.3s ease !important;
-    box-shadow: 0 0 15px rgba(0, 150, 255, 0.3);
+    transition: all 0.4s ease !important;
+    /* Soft cyan inner shadow/glow */
+    box-shadow: inset 0 0 10px rgba(0,255,255,0.2);
 }
 
 /* Focus glow effect */
 .stTextInput input:focus, .stTextArea textarea:focus, .stNumberInput input:focus, .stFileUploader input:focus {
-    border-color: #00c0ff !important;
-    box-shadow: 0 0 20px rgba(0,192,255,0.6);
-    background: #d0e8ff !important;
+    border-color: #00ffff !important; /* Cyan Focus Border */
+    /* Intense mixed glow on focus */
+    box-shadow: 0 0 5px #ff00ff, 0 0 15px #00ffff, inset 0 0 15px rgba(0,255,255,0.5);
+    background: #222244 !important; /* Slightly lighter on focus */
 }
 
 /* --- BUTTONS --- */
 .stButton > button {
     width: 100%;
-    font-family: 'Montserrat', sans-serif;
+    font-family: 'Orbitron', sans-serif;
     font-weight: 900;
-    border-radius: 30px;
-    border: none;
-    padding: 14px 25px;
+    border-radius: 5px; /* Aggressive, sharp button shape */
+    border: 2px solid #00ffff;
+    padding: 16px 30px;
     text-transform: uppercase;
-    font-size: 1.1em;
-    background: linear-gradient(135deg, #0077ff, #00c0ff);
-    color: #fff;
-    box-shadow: 0 5px 15px rgba(0,150,255,0.5);
-    transition: all 0.3s ease;
+    font-size: 1.2em;
+    /* Neon Gradient Button */
+    background: linear-gradient(135deg, #ff00ff, #00ffff);
+    color: #1a1a2e; /* Dark text on bright button */
+    /* Shadow and Hover effect */
+    box-shadow: 0 0 20px #00ffff;
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94); /* Smoother animation */
 }
 
 .stButton > button:hover {
-    transform: translateY(-3px) scale(1.05);
-    box-shadow: 0 10px 30px rgba(0,192,255,0.7);
+    transform: scale(1.02);
+    background: linear-gradient(135deg, #00ffff, #ff00ff); /* Reverse gradient on hover */
+    box-shadow: 0 0 30px #ff00ff, 0 0 40px rgba(0,255,255, 0.8);
+    border-color: #ff00ff;
 }
 
-/* --- TERMINAL --- */
+/* --- TERMINAL (CONSOLE) --- */
 .terminal-window {
-    background: #000;
-    color: #00c0ff;
-    border-radius: 25px;
-    padding: 20px;
-    height: 350px;
+    background: rgba(0, 0, 0, 0.8); /* Semi-transparent black */
+    color: #ccffaa; /* Hacker Green for terminal output */
+    border-radius: 10px;
+    padding: 25px;
+    height: 400px;
     overflow-y: auto;
-    font-family: 'Courier New', monospace;
-    font-size: 13px;
-    border: 2px solid #00c0ff;
-    box-shadow: inset 0 0 25px rgba(0,192,255,0.5), 0 0 40px rgba(0,192,255,0.3);
-    margin-top: 30px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 14px;
+    /* Deep, intense glow for the terminal */
+    border: 3px dashed #00ffff; /* Dashed Cyber-Border */
+    box-shadow: inset 0 0 20px rgba(0,255,255,0.6), 0 0 50px rgba(0,255,255,0.4);
+    margin-top: 40px;
+    animation: flicker 1.5s infinite alternate; /* Subtle flicker hologram effect */
+}
+
+@keyframes flicker {
+    0% { opacity: 1; text-shadow: 0 0 2px #ccffaa; }
+    50% { opacity: 0.98; text-shadow: 0 0 1px #ccffaa; }
+    100% { opacity: 1; text-shadow: 0 0 3px #ccffaa; }
 }
 
 /* Log lines */
 .log-line {
-    padding: 4px 0;
-    font-weight: 700;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
+    padding: 6px 0;
+    font-weight: 400;
+    color: #00ffff;
+    border-bottom: 0.5px dotted rgba(255, 0, 255, 0.1); /* Magenta separator */
 }
 
-/* Scrollbar */
+/* Scrollbar (Themed) */
 .terminal-window::-webkit-scrollbar {
-    width: 8px;
+    width: 6px;
 }
 .terminal-window::-webkit-scrollbar-thumb {
-    background: #00c0ff;
-    border-radius: 4px;
+    background: #ff00ff; /* Magenta Scrollbar */
+    border-radius: 3px;
 }
 .terminal-window::-webkit-scrollbar-track {
-    background: #f5f5f5;
+    background: #1a1a2e; /* Dark Track */
 }
 
 /* --- STATUS BADGE --- */
 .status-badge {
     display: inline-block;
-    padding: 6px 18px;
-    border-radius: 25px;
+    padding: 8px 20px;
+    border-radius: 3px; /* Sharper badge */
     font-weight: 700;
-    font-size: 0.85em;
-    background: linear-gradient(90deg, #0077ff, #00c0ff);
-    color: #fff;
+    font-size: 0.95em;
+    background: linear-gradient(90deg, #ff00ff, #00ffff);
+    color: #1a1a2e;
+    box-shadow: 0 0 10px #ff00ff, 0 0 15px #00ffff; /* Badge glow */
 }
-    </style>
