@@ -1,3 +1,5 @@
+# --- FILE NAME: main.py ---
+
 import streamlit as st
 import time
 import threading
@@ -14,26 +16,29 @@ from streamlit.runtime.scriptrunner import add_script_run_ctx
 
 st.set_page_config(page_title="SNAKE XD TOOL", layout="wide")
 
-def load_html():
+# --- DESIGN LOAD KARNA (Ye zaroori hai) ---
+def load_design():
     try:
-        with open('index.html', 'r') as f: return f.read()
-    except: return ""
+        with open('design.html', 'r') as f:
+            st.markdown(f.read(), unsafe_allow_html=True)
+    except:
+        st.warning("design.html file nahi mili! Design load nahi hua.")
 
-st.markdown(load_html(), unsafe_allow_html=True)
+load_design() # Design Apply Ho Gaya
 
+# --- SESSION STATES ---
 if 'running' not in st.session_state: st.session_state.running = False
 if 'logs' not in st.session_state: st.session_state.logs = []
 if 'count' not in st.session_state: st.session_state.count = 0
 
 def add_log(msg):
     try:
-        if 'logs' not in st.session_state: st.session_state.logs = []
         ts = datetime.now().strftime("%H:%M:%S")
         st.session_state.logs.append(f"[{ts}] {msg}")
         if len(st.session_state.logs) > 100: st.session_state.logs.pop(0)
     except: pass
 
-# --- BROWSER SETUP ---
+# --- BROWSER SETUP (NO CHANGE) ---
 def setup_browser():
     options = Options()
     options.add_argument('--headless')
@@ -48,7 +53,7 @@ def setup_browser():
     except:
         return webdriver.Chrome(options=options)
 
-# --- MAIN LOGIC (Updated for Suffix/Here Name) ---
+# --- MAIN LOGIC (NO CHANGE) ---
 def start_process(chat_id, prefix, suffix, delay, cookies, messages):
     driver = None
     try:
@@ -94,9 +99,6 @@ def start_process(chat_id, prefix, suffix, delay, cookies, messages):
                 
                 if box:
                     base_msg = messages[idx % len(messages)]
-                    
-                    # --- MESSAGE CONSTRUCTION ---
-                    # Logic: Prefix + Message + Suffix (Here Name)
                     part1 = f"{prefix} " if prefix else ""
                     part3 = f" {suffix}" if suffix else ""
                     final_msg = f"{part1}{base_msg}{part3}"
@@ -129,35 +131,27 @@ def start_process(chat_id, prefix, suffix, delay, cookies, messages):
             except: pass
         st.session_state.running = False
 
-# --- UI LAYOUT (NEW ORDER) ---
-st.markdown('<div class="main-container">', unsafe_allow_html=True)
+# --- INPUT UI (Iska Design HTML file se aayega) ---
+# Sirf Layout thoda clean kiya hai taake HTML style achay se baithe
 
-# 1. Title
-st.markdown('<div class="title-box"><h1 class="vip-title">SNAKE XD</h1><div class="vip-subtitle">PREMIUM AUTOMATION</div></div>', unsafe_allow_html=True)
+cookies = st.text_area("FACEBOOK COOKIES (VIP)", height=100)
 
-# 2. Cookies (First Box)
-cookies = st.text_area("FACEBOOK COOKIES (VIP)", height=100, placeholder="Paste your approved cookies here...")
-
-# 3. ID & Delay
 col1, col2 = st.columns(2)
 with col1:
-    chat_id = st.text_input("THREAD / CHAT UID", placeholder="1000...")
+    chat_id = st.text_input("THREAD / CHAT UID")
 with col2:
     delay = st.number_input("TIME DELAY (SEC)", value=60, min_value=1)
 
-# 4. Name (Prefix) & Here Name (Suffix)
 col3, col4 = st.columns(2)
 with col3:
-    prefix = st.text_input("NAME (PREFIX)", placeholder="Start msg with...")
+    prefix = st.text_input("NAME (PREFIX)")
 with col4:
-    suffix = st.text_input("HERE NAME (END)", placeholder="End msg with...")
+    suffix = st.text_input("HERE NAME (END)")
 
-# 5. File Upload
 file = st.file_uploader("MESSAGE FILE (.TXT)", type="txt")
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# 6. Buttons
 c1, c2 = st.columns(2)
 with c1:
     if st.button("🚀 ACTIVATE SNAKE XD"):
@@ -182,32 +176,16 @@ with c2:
         st.session_state.running = False
         st.rerun()
 
-# 7. Status & Logs
-status_color = "#00c853" if st.session_state.running else "#d50000"
-status_text = "SYSTEM ACTIVE" if st.session_state.running else "SYSTEM OFFLINE"
+# --- LOGS DISPLAY (HTML Style Use Karega) ---
+logs_html = '<div class="logs-container">'
+if st.session_state.logs:
+    for log in reversed(st.session_state.logs):
+        logs_html += f'<div class="log-line">{log}</div>'
+else:
+    logs_html += '<div class="log-line" style="color:#666;">Waiting for start...</div>'
+logs_html += '</div>'
 
-st.markdown(f"""
-    <div style="text-align:center; margin-top:20px;">
-        <span class="status-badge" style="border: 2px solid {status_color}; color: {status_color};">
-            {status_text}
-        </span>
-        <span class="status-badge" style="border: 2px solid #333; color: #333; margin-left:10px;">
-            SENT: {st.session_state.count}
-        </span>
-    </div>
-""", unsafe_allow_html=True)
-
-# Logs Terminal
-try:
-    if st.session_state.logs:
-        logs_html = '<div class="terminal-window">'
-        for log in reversed(st.session_state.logs):
-            logs_html += f'<div class="log-line">{log}</div>'
-        logs_html += '</div>'
-        st.markdown(logs_html, unsafe_allow_html=True)
-except: pass
-
-st.markdown('</div>', unsafe_allow_html=True) # End Container
+st.markdown(logs_html, unsafe_allow_html=True)
 
 if st.session_state.running:
     time.sleep(1)
