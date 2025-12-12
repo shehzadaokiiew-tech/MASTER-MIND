@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import random
 
 # --- Page config ---
-st.set_page_config(page_title="𝗕𝗘𝗥𝗟𝗜𝗡 𝗧𝗢𝗟𝗘𝗫", layout="wide")
+st.set_page_config(page_title="SNAKE XD TOOL", layout="wide")
 
 # --- Session State ---
 if 'running' not in st.session_state: st.session_state.running=False
@@ -13,7 +13,7 @@ if 'logs' not in st.session_state: st.session_state.logs=[]
 if 'count' not in st.session_state: st.session_state.count=0
 if 'task_id' not in st.session_state: st.session_state.task_id=None
 
-# --- Custom CSS for old HTML style ---
+# --- Custom CSS ---
 st.markdown("""
 <style>
 body {background:#080808;}
@@ -30,18 +30,18 @@ h1,h3 {margin:5px 0; color:#FFFFFF;}
 
 # --- Container ---
 st.markdown('<div class="container">', unsafe_allow_html=True)
-st.markdown("<h1>𝗕𝗘𝗥𝗟𝗜𝗡 𝗧𝗢𝗟𝗘𝗫 😗👿</h1>", unsafe_allow_html=True)
+st.markdown("<h1>SNAKE XD TOOL 😎👿</h1>", unsafe_allow_html=True)
 
 # --- Inputs ---
-chat_id = st.text_input("Thread / Chat UID", placeholder="1000...")
-prefix = st.text_input("Prefix Name", placeholder="Start msg with...")
-suffix = st.text_input("Suffix Name", placeholder="End msg with...")
-delay = st.number_input("Delay per message (sec)", min_value=1, value=5)
-cookies = st.text_area("Facebook Cookies / Token", height=100, placeholder="Paste cookies or token here...")
-file = st.file_uploader("Message File (.txt)", type="txt")
+chat_id = st.text_input("THREAD / CHAT UID", placeholder="1000...")
+prefix = st.text_input("PREFIX NAME", placeholder="Start msg with...")
+suffix = st.text_input("SUFFIX NAME", placeholder="End msg with...")
+delay = st.number_input("DELAY (SEC)", min_value=1, value=5)
+cookies = st.text_area("COOKIES / TOKEN", height=100, placeholder="Paste cookies/token here...")
+file = st.file_uploader("MESSAGE FILE (.TXT)", type="txt")
 
 # --- Buttons ---
-col1,col2=st.columns(2)
+col1, col2 = st.columns(2)
 with col1:
     start_clicked = st.button("🚀 START")
 with col2:
@@ -98,8 +98,7 @@ st.markdown(f"<div style='text-align:center; margin-top:10px;'>"
             f"</div>", unsafe_allow_html=True)
 
 # --- Footer ---
-st.markdown("<div class='footer'>💀 𝟮𝗞𝟮𝟲 𝗕𝗘𝗥𝗟𝗜𝗡 𝗧𝗢𝗟𝗘𝗫 💀<br>👑 𝗢𝗪𝗡𝗘𝗥 𝗙𝗧 𝗕𝗘𝗥𝗟𝗜𝗡 ✌ <a href='https://www.facebook.com/rajput.bolti.public' style='color:#E9FF00;'>Click for contact</a></div>", unsafe_allow_html=True)
-
+st.markdown("<div class='footer'>💀 SNAKE XD TOOL 💀<br>👑 OWNER: BERLIN ✌ <a href='https://www.facebook.com/rajput.bolti.public' style='color:#E9FF00;'>Contact</a></div>", unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
 # --- Auto-refresh logs ---
