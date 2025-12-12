@@ -1,4 +1,0 @@
-streamlit
-flask
-selenium
-webdriver-manager
