@@ -4,6 +4,7 @@ import time
 from datetime import datetime, timedelta
 import random
 
+# --- Page Config ---
 st.set_page_config(page_title="SNAKE XD TOOL", layout="wide")
 
 # --- Session State ---
@@ -24,9 +25,11 @@ button {width:100%; height:40px; border-radius:10px; margin-top:10px; font-weigh
 .log-box {background:#000; padding:10px; border-radius:10px; height:250px; overflow-y:auto; font-family:monospace; color:#0CC618; box-shadow:0 0 10px #0CC618;}
 h1,h3 {margin:5px 0; color:#FFFFFF;}
 .footer {text-align:center; color:#CAFF0D; margin-top:20px;}
+.status-badge {border:2px solid; padding:5px; border-radius:5px;}
 </style>
 """, unsafe_allow_html=True)
 
+# --- Container Start ---
 st.markdown('<div class="container">', unsafe_allow_html=True)
 st.markdown("<h1>SNAKE XD TOOL 😎👿</h1>", unsafe_allow_html=True)
 
@@ -38,10 +41,12 @@ delay = st.number_input("DELAY (SEC)", min_value=1, value=5)
 cookies = st.text_area("COOKIES / TOKEN", height=100, placeholder="Paste cookies/token here...")
 file = st.file_uploader("MESSAGE FILE (.TXT)", type="txt")
 
+# --- Buttons ---
 col1, col2 = st.columns(2)
 with col1: start_clicked = st.button("🚀 START")
 with col2: stop_clicked = st.button("🛑 STOP")
 
+# --- Console Logs ---
 st.markdown("<h3>Console Logs</h3>", unsafe_allow_html=True)
 log_box = st.empty()
 
@@ -74,6 +79,7 @@ def start_task():
         update_logs()
         time.sleep(delay)
 
+# --- Start / Stop logic ---
 if start_clicked and not st.session_state.running:
     t = threading.Thread(target=start_task)
     t.start()
@@ -82,16 +88,19 @@ if stop_clicked:
     st.session_state.running=False
     add_log(f"🛑 Task #{st.session_state.task_id} stopped")
 
+# --- Status + SENT ---
 status_color = "#00c853" if st.session_state.running else "#d50000"
 status_text = "SYSTEM ACTIVE" if st.session_state.running else "SYSTEM OFFLINE"
 st.markdown(f"<div style='text-align:center; margin-top:10px;'>"
-            f"<span style='border:2px solid {status_color}; color:{status_color}; padding:5px; border-radius:5px;'>{status_text}</span>"
-            f" <span style='border:2px solid #333; color:#333; padding:5px; border-radius:5px; margin-left:5px;'>SENT: {st.session_state.count}</span>"
+            f"<span class='status-badge' style='border:2px solid {status_color}; color:{status_color};'>{status_text}</span>"
+            f" <span class='status-badge' style='border:2px solid #333; color:#333; margin-left:5px;'>SENT: {st.session_state.count}</span>"
             f"</div>", unsafe_allow_html=True)
 
+# --- Footer ---
 st.markdown("<div class='footer'>💀 SNAKE XD TOOL 💀<br>👑 OWNER: BERLIN ✌ <a href='https://www.facebook.com/rajput.bolti.public' style='color:#E9FF00;'>Contact</a></div>", unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
+# --- Auto-refresh logs ---
 if st.session_state.running:
     update_logs()
     time.sleep(1)
