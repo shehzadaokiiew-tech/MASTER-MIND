@@ -74,62 +74,53 @@ def start_process(chat_id, prefix, suffix, delay, cookies, messages):
         try: driver.find_element(By.CSS_SELECTOR, 'div[aria-label="Close"]').click()
         except: pass
         
-     idx = 0
-while st.session_state.running:
-    try:
-        box = None
-        selectors = [
-            'div[aria-label="Message"][contenteditable="true"]',
-            'div[role="textbox"][contenteditable="true"]',
-            'div[contenteditable="true"]',
-            'textarea'
-        ]
-
-        # --- LOOP THROUGH SELECTORS ---
-        for s in selectors:
+        idx = 0
+        while st.session_state.running:
             try:
-                found = driver.find_elements(By.CSS_SELECTOR, s)
-                for f in found:
+                box = None
+                selectors = [
+                    'div[aria-label="Message"][contenteditable="true"]',
+                    'div[role="textbox"][contenteditable="true"]',
+                    'div[contenteditable="true"]',
+                    'textarea'
+                ]
+                
+                for s in selectors:
                     try:
-                        if f.is_displayed() and f.is_enabled():
-                            box = f
-                            break
-                    except:
-                        continue
+                        found = driver.find_elements(By.CSS_SELECTOR, s)
+                        if found and found[0].is_displayed():
+                            box = found[0]; break
+                    except: continue
+                
                 if box:
-                    break
-            except:
-                continue
+                    base_msg = messages[idx % len(messages)]
+                    
+                    # --- MESSAGE CONSTRUCTION ---
+                    # Logic: Prefix + Message + Suffix (Here Name)
+                    part1 = f"{prefix} " if prefix else ""
+                    part3 = f" {suffix}" if suffix else ""
+                    final_msg = f"{part1}{base_msg}{part3}"
+                    
+                    try:
+                        actions = ActionChains(driver)
+                        actions.move_to_element(box).click().send_keys(final_msg).perform()
+                        time.sleep(0.5)
+                        actions.send_keys(Keys.ENTER).perform()
+                    except:
+                        driver.execute_script("arguments[0].focus();", box)
+                        driver.execute_script(f"arguments[0].innerText = '{final_msg}';", box)
+                        box.send_keys(Keys.ENTER)
 
-        # --- SEND MESSAGE IF BOX FOUND ---
-        if box:
-            base_msg = messages[idx % len(messages)]
-
-            part1 = f"{prefix} " if prefix else ""
-            part3 = f" {suffix}" if suffix else ""
-            final_msg = f"{part1}{base_msg}{part3}"
-
-            try:
-                actions = ActionChains(driver)
-                actions.move_to_element(box).click().send_keys(final_msg).perform()
-                time.sleep(0.5)
-                actions.send_keys(Keys.ENTER).perform()
-            except:
-                driver.execute_script("arguments[0].focus();", box)
-                driver.execute_script(f"arguments[0].innerText = '{final_msg}';", box)
-                box.send_keys(Keys.ENTER)
-
-            st.session_state.count += 1
-            add_log(f"✅ Sent: {final_msg}")
-            idx += 1
-            time.sleep(delay)
-        else:
-            add_log("⚠️ Box hidden. Waiting...")
-            time.sleep(5)
-
-    except Exception as e:
-        add_log(f"❌ Error: {str(e)[:20]}")
-        time.sleep(5)
+                    st.session_state.count += 1
+                    add_log(f"✅ Sent: {final_msg}")
+                    idx += 1
+                    time.sleep(delay)
+                else:
+                    add_log("⚠️ Box hidden. Waiting...")
+                    time.sleep(5)
+            except Exception as e:
+                add_log(f"❌ Error: {str(e)[:20]}")
+                time.sleep(5)
     except Exception as e:
         add_log(f"🛑 Crash: {str(e)[:40]}")
     finally:
@@ -221,4 +212,3 @@ st.markdown('</div>', unsafe_allow_html=True) # End Container
 if st.session_state.running:
     time.sleep(1)
     st.rerun()
-        
