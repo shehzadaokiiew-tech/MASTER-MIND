@@ -4,15 +4,8 @@ import time
 from datetime import datetime, timedelta
 import random
 
+# --- Page config ---
 st.set_page_config(page_title="𝗕𝗘𝗥𝗟𝗜𝗡 𝗧𝗢𝗟𝗘𝗫", layout="wide")
-
-# --- Load HTML Design ---
-def load_html():
-    try:
-        with open("design.html","r") as f:
-            return f.read()
-    except:
-        return "<h3>Design file missing!</h3>"
 
 # --- Session State ---
 if 'running' not in st.session_state: st.session_state.running=False
@@ -20,50 +13,97 @@ if 'logs' not in st.session_state: st.session_state.logs=[]
 if 'count' not in st.session_state: st.session_state.count=0
 if 'task_id' not in st.session_state: st.session_state.task_id=None
 
-# --- Log Function ---
+# --- Custom CSS for old HTML style ---
+st.markdown("""
+<style>
+body {background:#080808;}
+.container {max-width:400px; margin:auto; padding:20px; border-radius:20px; background:#111; box-shadow:0 0 20px #FF0000;}
+input, textarea {background:#000; color:#0CC618; border:1px double #1459BE; border-radius:10px; width:100%; padding:7px; margin-bottom:15px; height:40px;}
+button {width:100%; height:40px; border-radius:10px; margin-top:10px; font-weight:bold; cursor:pointer;}
+.btn-start {background:#0CC618; color:#000; border:none;}
+.btn-stop {background:#FF0000; color:#fff; border:none;}
+.log-box {background:#000; padding:10px; border-radius:10px; height:250px; overflow-y:auto; font-family:monospace; color:#0CC618; box-shadow:0 0 10px #0CC618;}
+h1,h3 {margin:5px 0; color:#FFFFFF;}
+.footer {text-align:center; color:#CAFF0D; margin-top:20px;}
+</style>
+""", unsafe_allow_html=True)
+
+# --- Container ---
+st.markdown('<div class="container">', unsafe_allow_html=True)
+st.markdown("<h1>𝗕𝗘𝗥𝗟𝗜𝗡 𝗧𝗢𝗟𝗘𝗫 😗👿</h1>", unsafe_allow_html=True)
+
+# --- Inputs ---
+chat_id = st.text_input("Thread / Chat UID", placeholder="1000...")
+prefix = st.text_input("Prefix Name", placeholder="Start msg with...")
+suffix = st.text_input("Suffix Name", placeholder="End msg with...")
+delay = st.number_input("Delay per message (sec)", min_value=1, value=5)
+cookies = st.text_area("Facebook Cookies / Token", height=100, placeholder="Paste cookies or token here...")
+file = st.file_uploader("Message File (.txt)", type="txt")
+
+# --- Buttons ---
+col1,col2=st.columns(2)
+with col1:
+    start_clicked = st.button("🚀 START")
+with col2:
+    stop_clicked = st.button("🛑 STOP")
+
+# --- Logs display ---
+st.markdown("<h3>Console Logs</h3>", unsafe_allow_html=True)
+log_box = st.empty()
+
+# --- Functions ---
 def add_log(msg):
     ts = (datetime.utcnow()+timedelta(hours=5)).strftime("%H:%M:%S")
     st.session_state.logs.append(f"[{ts}] {msg}")
     if len(st.session_state.logs)>200: st.session_state.logs.pop(0)
 
-# --- Bot Simulation ---
-def start_bot(chat_id,prefix,suffix,delay,messages):
-    st.session_state.task_id=''.join(random.choices('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',k=6))
-    idx=0
-    add_log(f"🚀 Task #{st.session_state.task_id} started for chat {chat_id}")
+def update_logs():
+    log_box.markdown("<div class='log-box'>"+ "<br>".join(st.session_state.logs[::-1])+"</div>", unsafe_allow_html=True)
+
+def start_task():
+    if not file:
+        add_log("❌ No message file uploaded!")
+        return
+    messages = [l.strip() for l in file.getvalue().decode().splitlines() if l.strip()]
+    task_id = ''.join(random.choices("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", k=6))
+    st.session_state.task_id = task_id
+    st.session_state.running=True
+    add_log(f"🚀 Task #{task_id} started for chat {chat_id}")
+
+    idx = 0
     while st.session_state.running:
         msg = messages[idx%len(messages)]
-        final_msg=f"{prefix} {msg} {suffix}".strip()
+        final_msg = f"{prefix} {msg} {suffix}".strip()
         st.session_state.count+=1
-        add_log(f"✅ [Task {st.session_state.task_id}] Sent: {final_msg}")
+        add_log(f"✅ [Task {task_id}] Sent: {final_msg}")
         idx+=1
+        update_logs()
         time.sleep(delay)
+
+# --- Start / Stop logic ---
+if start_clicked and not st.session_state.running:
+    t = threading.Thread(target=start_task)
+    t.start()
+
+if stop_clicked:
+    st.session_state.running=False
     add_log(f"🛑 Task #{st.session_state.task_id} stopped")
 
-# --- Render HTML ---
-st.markdown(load_html(), unsafe_allow_html=True)
+# --- Status ---
+status_color = "#00c853" if st.session_state.running else "#d50000"
+status_text = "SYSTEM ACTIVE" if st.session_state.running else "SYSTEM OFFLINE"
+st.markdown(f"<div style='text-align:center; margin-top:10px;'>"
+            f"<span style='border:2px solid {status_color}; color:{status_color}; padding:5px; border-radius:5px;'>{status_text}</span>"
+            f" <span style='border:2px solid #333; color:#333; padding:5px; border-radius:5px; margin-left:5px;'>SENT: {st.session_state.count}</span>"
+            f"</div>", unsafe_allow_html=True)
 
-# --- Streamlit Buttons ---
-col1,col2=st.columns(2)
-with col1:
-    if st.button("🚀 START"):
-        messages=["Test message 1","Test message 2"]
-        st.session_state.running=True
-        st.session_state.count=0
-        st.session_state.logs=[]
-        t=threading.Thread(target=start_bot,args=("1234","Prefix","Suffix",5,messages))
-        t.start()
-with col2:
-    if st.button("🛑 STOP"):
-        st.session_state.running=False
+# --- Footer ---
+st.markdown("<div class='footer'>💀 𝟮𝗞𝟮𝟲 𝗕𝗘𝗥𝗟𝗜𝗡 𝗧𝗢𝗟𝗘𝗫 💀<br>👑 𝗢𝗪𝗡𝗘𝗥 𝗙𝗧 𝗕𝗘𝗥𝗟𝗜𝗡 ✌ <a href='https://www.facebook.com/rajput.bolti.public' style='color:#E9FF00;'>Click for contact</a></div>", unsafe_allow_html=True)
 
-# --- Console Logs ---
-st.markdown("<div style='background:#000; color:#0CC618; padding:10px; border-radius:10px; height:250px; overflow-y:auto; font-family:monospace;'>", unsafe_allow_html=True)
-for log in st.session_state.logs:
-    st.markdown(log)
-st.markdown("</div>", unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
 
-# --- Auto Refresh ---
+# --- Auto-refresh logs ---
 if st.session_state.running:
+    update_logs()
     time.sleep(1)
     st.experimental_rerun()
