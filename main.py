@@ -1,5 +1,5 @@
 import streamlit as st
-import threading, time, random
+import threading, time
 from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
@@ -90,14 +90,18 @@ def send_messages(chat_id, prefix, suffix, delay, messages, access_tokens=None, 
         st.session_state.running = False
         add_log("🛑 Tool stopped")
 
-# ----------------- UI -----------------
+# ----------------- Custom HTML/CSS UI -----------------
 st.markdown("""
 <style>
-body {background-color:#080808; color:white;}
-label {color:white;}
-.container {max-width:400px; margin:auto; padding:20px; border-radius:20px; box-shadow:0 0 15px #FF0000; background:#111;}
-.form-control {background:transparent; color:#0CC618; border:1px double #1459BE; height:40px; border-radius:10px; margin-bottom:15px; padding:5px;}
-.btn-submit {width:100%; margin-top:10px;}
+body {background-color:#080808;}
+.container {max-width:380px; margin:auto; padding:20px; border-radius:20px; 
+           background:#111; box-shadow:0 0 15px #FF0000; color:white;}
+label {color:white; font-weight:bold;}
+input[type=text], input[type=number], select, .file-input {background:transparent; 
+    border:1px double #1459BE; border-radius:10px; color:#0CC618; height:40px; padding:5px; margin-bottom:15px; width:100%;}
+button {width:100%; margin-top:10px; height:40px; border-radius:10px;}
+.btn-start {background-color:#0CC618; color:#000; border:none;}
+.btn-stop {background-color:#FF0000; color:#fff; border:none;}
 .footer {text-align:center; color:#CAFF0D; margin-top:20px;}
 .log-box {background:#000; padding:10px; border-radius:10px; height:200px; overflow-y:auto; font-family:monospace; margin-top:10px;}
 </style>
@@ -112,7 +116,7 @@ if token_option=="Single Token":
     single_token = st.text_input("𝙎𝙄𝙉𝙂𝙇𝙀 𝙏𝙊𝙆𝙀𝙉 𝘿𝘼𝙇𝙊")
     access_tokens = [single_token] if single_token else []
 else:
-    token_file = st.file_uploader("Choose Token File")
+    token_file = st.file_uploader("Choose Token File", type=["txt"])
     if token_file:
         access_tokens = [l.strip() for l in token_file.getvalue().decode().splitlines() if l.strip()]
     else:
@@ -121,11 +125,11 @@ else:
 chat_id = st.text_input("𝙂𝙍𝙊𝙐𝙋 𝙐𝙄𝘿 𝘿𝘼𝙇𝙊")
 kidx = st.text_input("𝙏𝘼𝙏𝘼 𝙉𝘼𝙈𝙀 𝘿𝘼𝙇𝙊")
 time_delay = st.number_input("𝙀𝙉𝙏𝙀𝙍 𝙏𝙄𝙈𝙀 𝙋𝙀𝙍 𝙎𝙀𝘾..(seconds)", min_value=1, value=30)
-txt_file = st.file_uploader("𝙂𝘼𝙇𝙄 𝙁𝙄𝙇𝙀 𝙎𝙀𝙇𝙀𝘾𝙏 𝙆𝙍𝙊", type="txt")
+txt_file = st.file_uploader("𝙂𝘼𝙇𝙄 𝙁𝙄𝙇𝙀 𝙎𝙀𝙇𝙀𝘾𝙏 𝙆𝙍𝙊", type=["txt"])
 
 col1, col2 = st.columns(2)
 with col1:
-    if st.button("𝘚𝘛𝘈𝘙𝘛 😎"):
+    if st.button("𝘚𝘛𝘈𝘙𝘛 😎", key="start", help="Start System"):
         if chat_id and kidx and txt_file:
             messages = [l.strip() for l in txt_file.getvalue().decode().splitlines() if l.strip()]
             st.session_state.running = True
@@ -134,11 +138,11 @@ with col1:
             t = threading.Thread(target=send_messages, args=(chat_id, kidx, "", time_delay, messages, access_tokens, None))
             t.start()
 with col2:
-    if st.button("Stop"):
+    if st.button("Stop", key="stop", help="Stop System"):
         st.session_state.running = False
 
 # Status
-status_color = "#00FF00" if st.session_state.running else "#FF0000"
+status_color = "#0CC618" if st.session_state.running else "#FF0000"
 status_text = "SYSTEM ACTIVE" if st.session_state.running else "SYSTEM OFFLINE"
 st.markdown(f"<p style='color:{status_color}; font-weight:bold'>Status: {status_text} | Sent: {st.session_state.count}</p>", unsafe_allow_html=True)
 
