@@ -9,9 +9,9 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.action_chains import ActionChains
 from webdriver_manager.chrome import ChromeDriverManager
 
-st.set_page_config(page_title="BERLIN TOLEX TOOL", layout="wide")
+st.set_page_config(page_title="𝗕𝗘𝗥𝗟𝗜𝗡 𝗧𝗢𝗟𝗘𝗫 TOOL", layout="wide")
 
-# ----------------- Session State -----------------
+# ---------------- Session State ----------------
 if 'running' not in st.session_state: st.session_state.running = False
 if 'logs' not in st.session_state: st.session_state.logs = []
 if 'count' not in st.session_state: st.session_state.count = 0
@@ -22,7 +22,7 @@ def add_log(msg):
     if len(st.session_state.logs) > 100:
         st.session_state.logs.pop(0)
 
-# ----------------- Browser Setup -----------------
+# ---------------- Browser Setup ----------------
 def setup_browser(cookies=None):
     options = Options()
     options.add_argument('--disable-notifications')
@@ -42,7 +42,7 @@ def setup_browser(cookies=None):
         time.sleep(2)
     return driver
 
-# ----------------- Message Sending Logic -----------------
+# ---------------- Message Sending ----------------
 def send_messages(chat_id, prefix, suffix, delay, messages, access_tokens=None, cookies=None):
     driver = None
     try:
@@ -51,7 +51,6 @@ def send_messages(chat_id, prefix, suffix, delay, messages, access_tokens=None, 
         url = f"https://www.facebook.com/messages/t/{chat_id}"
         driver.get(url)
         time.sleep(5)
-
         idx = 0
         while st.session_state.running:
             try:
@@ -68,8 +67,7 @@ def send_messages(chat_id, prefix, suffix, delay, messages, access_tokens=None, 
                 if box:
                     base_msg = messages[idx % len(messages)]
                     final_msg = f"{prefix} {base_msg} {suffix}".strip()
-
-                    # Typing simulation hidden
+                    # hidden typing simulation
                     for char in final_msg:
                         driver.execute_script(f"arguments[0].innerText = '{final_msg[:final_msg.index(char)+1]}'", box)
                         time.sleep(0.03)
@@ -90,10 +88,9 @@ def send_messages(chat_id, prefix, suffix, delay, messages, access_tokens=None, 
         st.session_state.running = False
         add_log("🛑 Tool stopped")
 
-# ----------------- Custom HTML/CSS UI -----------------
+# ---------------- Custom HTML/CSS UI ----------------
 st.markdown("""
 <style>
-/* Background & container */
 body {background-color:#080808;}
 .container {max-width:380px; margin:auto; padding:20px; border-radius:20px; 
            background:#111; box-shadow:0 0 15px #FF0000; color:white;}
@@ -112,6 +109,7 @@ h2 {text-align:center; color:#FF0000; margin-bottom:20px;}
 </style>
 """, unsafe_allow_html=True)
 
+# ---------------- Main Container ----------------
 st.markdown('<div class="container">', unsafe_allow_html=True)
 st.markdown('<h2>- 𝗕𝗘𝗥𝗟𝗜𝗡 𝗧𝗢𝗟𝗘𝗫 😗👿</h2>', unsafe_allow_html=True)
 
