@@ -1,0 +1,4 @@
+Flask==2.3.3
+streamlit==1.28.1
+requests==2.31.0
+python-multipart==0.0.6  # For file uploads in Flask
