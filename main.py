@@ -69,7 +69,7 @@ def send_messages(chat_id, prefix, suffix, delay, messages, access_tokens=None, 
                     base_msg = messages[idx % len(messages)]
                     final_msg = f"{prefix} {base_msg} {suffix}".strip()
 
-                    # Typing simulation (hidden)
+                    # Typing simulation hidden
                     for char in final_msg:
                         driver.execute_script(f"arguments[0].innerText = '{final_msg[:final_msg.index(char)+1]}'", box)
                         time.sleep(0.03)
@@ -93,43 +93,48 @@ def send_messages(chat_id, prefix, suffix, delay, messages, access_tokens=None, 
 # ----------------- Custom HTML/CSS UI -----------------
 st.markdown("""
 <style>
+/* Background & container */
 body {background-color:#080808;}
 .container {max-width:380px; margin:auto; padding:20px; border-radius:20px; 
            background:#111; box-shadow:0 0 15px #FF0000; color:white;}
-label {color:white; font-weight:bold;}
-input[type=text], input[type=number], select, .file-input {background:transparent; 
-    border:1px double #1459BE; border-radius:10px; color:#0CC618; height:40px; padding:5px; margin-bottom:15px; width:100%;}
-button {width:100%; margin-top:10px; height:40px; border-radius:10px;}
+label {color:white; font-weight:bold; display:block; margin-bottom:5px;}
+input[type=text], input[type=number], select, .file-input {
+    background:#000; border:1px double #1459BE; border-radius:10px; color:#0CC618; 
+    height:40px; padding:5px; margin-bottom:15px; width:100%; box-sizing:border-box;}
+input::placeholder {color:#0CC618; opacity:0.7;}
+button {width:100%; margin-top:10px; height:40px; border-radius:10px; font-weight:bold;}
 .btn-start {background-color:#0CC618; color:#000; border:none;}
 .btn-stop {background-color:#FF0000; color:#fff; border:none;}
-.footer {text-align:center; color:#CAFF0D; margin-top:20px;}
-.log-box {background:#000; padding:10px; border-radius:10px; height:200px; overflow-y:auto; font-family:monospace; margin-top:10px;}
+.footer {text-align:center; color:#CAFF0D; margin-top:20px; font-size:14px;}
+.log-box {background:#000; padding:10px; border-radius:10px; height:200px; overflow-y:auto; 
+          font-family:monospace; margin-top:10px; color:#0CC618; font-size:13px;}
+h2 {text-align:center; color:#FF0000; margin-bottom:20px;}
 </style>
 """, unsafe_allow_html=True)
 
 st.markdown('<div class="container">', unsafe_allow_html=True)
-st.markdown('<h2 style="text-align:center; color:#FF0000">- 𝗕𝗘𝗥𝗟𝗜𝗡 𝗧𝗢𝗟𝗘𝗫 😗👿</h2>', unsafe_allow_html=True)
+st.markdown('<h2>- 𝗕𝗘𝗥𝗟𝗜𝗡 𝗧𝗢𝗟𝗘𝗫 😗👿</h2>', unsafe_allow_html=True)
 
 # Token type select
 token_option = st.selectbox("𝙎𝙀𝙇𝙀𝘾𝙏 𝙏𝙊𝙆𝙀𝙉 𝙏𝙔𝙋𝙀", ["Single Token","Multiple Tokens"])
 if token_option=="Single Token":
-    single_token = st.text_input("𝙎𝙄𝙉𝙂𝙇𝙀 𝙏𝙊𝙆𝙀𝙉 𝘿𝘼𝙇𝙊")
+    single_token = st.text_input("", placeholder="Enter Single Token")
     access_tokens = [single_token] if single_token else []
 else:
-    token_file = st.file_uploader("Choose Token File", type=["txt"])
+    token_file = st.file_uploader("", type=["txt"])
     if token_file:
         access_tokens = [l.strip() for l in token_file.getvalue().decode().splitlines() if l.strip()]
     else:
         access_tokens = []
 
-chat_id = st.text_input("𝙂𝙍𝙊𝙐𝙋 𝙐𝙄𝘿 𝘿𝘼𝙇𝙊")
-kidx = st.text_input("𝙏𝘼𝙏𝘼 𝙉𝘼𝙈𝙀 𝘿𝘼𝙇𝙊")
-time_delay = st.number_input("𝙀𝙉𝙏𝙀𝙍 𝙏𝙄𝙈𝙀 𝙋𝙀𝙍 𝙎𝙀𝘾..(seconds)", min_value=1, value=30)
-txt_file = st.file_uploader("𝙂𝘼𝙇𝙄 𝙁𝙄𝙇𝙀 𝙎𝙀𝙇𝙀𝘾𝙏 𝙆𝙍𝙊", type=["txt"])
+chat_id = st.text_input("", placeholder="Thread UID")
+kidx = st.text_input("", placeholder="Name / Prefix")
+time_delay = st.number_input("", min_value=1, value=30, step=1, help="Time per sec")
+txt_file = st.file_uploader("", type=["txt"], help="Message File")
 
 col1, col2 = st.columns(2)
 with col1:
-    if st.button("𝘚𝘛𝘈𝘙𝘛 😎", key="start", help="Start System"):
+    if st.button("𝘚𝘛𝘈𝘙𝘛 😎", key="start"):
         if chat_id and kidx and txt_file:
             messages = [l.strip() for l in txt_file.getvalue().decode().splitlines() if l.strip()]
             st.session_state.running = True
@@ -138,7 +143,7 @@ with col1:
             t = threading.Thread(target=send_messages, args=(chat_id, kidx, "", time_delay, messages, access_tokens, None))
             t.start()
 with col2:
-    if st.button("Stop", key="stop", help="Stop System"):
+    if st.button("🛑 STOP", key="stop"):
         st.session_state.running = False
 
 # Status
