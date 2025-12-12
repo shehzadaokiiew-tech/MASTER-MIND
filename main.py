@@ -1,391 +1,216 @@
-import streamlit as st
-import time
-import threading
-import json
-import os
-import pytz
-from datetime import datetime
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.action_chains import ActionChains
-from webdriver_manager.chrome import ChromeDriverManager
-from webdriver_manager.core.os_manager import ChromeType
-from streamlit.runtime.scriptrunner import add_script_run_ctx
+import streamlit as st import time import threading import uuid from selenium import webdriver from selenium.webdriver.common.by import By from selenium.webdriver.common.keys import Keys from selenium.webdriver.chrome.options import Options from selenium.webdriver.chrome.service import Service from selenium.webdriver.common.action_chains import ActionChains from datetime import datetime from webdriver_manager.chrome import ChromeDriverManager from webdriver_manager.core.os_manager import ChromeType from streamlit.runtime.scriptrunner import add_script_run_ctx
 
-# --- PAGE CONFIGURATION ---
-st.set_page_config(
-    page_title="MASTERO TOOL - VIP AUTOMATION",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
+-------------------------
 
-# --- CUSTOM CSS & HTML (THEME) ---
-# This creates the "Mastero" dark/hacker look
-custom_css = """
+New Streamlit App: Snake XD (Styled + Task Manager)
+
+Save this file and run: streamlit run snake_xd_streamlit_new.py
+
+Requirements: streamlit, selenium, webdriver-manager
+
+-------------------------
+
+st.set_page_config(page_title="SNAKE XD TOOL - NEW", layout="wide")
+
+--- Load custom CSS to mimic screenshot's neon / dark style ---
+
+CUSTOM_CSS = """
+
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Roboto+Mono:wght@400;700&display=swap');
-    
-    body { background-color: #0e0e0e; color: #00ff00; font-family: 'Roboto Mono', monospace; }
-    .stApp { background-color: #050505; }
-    
-    /* TITLES */
-    .mastero-title {
-        font-family: 'Orbitron', sans-serif;
-        font-size: 3.5rem;
-        text-align: center;
-        background: -webkit-linear-gradient(#00ff00, #004d00);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        text-shadow: 0px 0px 20px rgba(0, 255, 0, 0.5);
-        margin-bottom: 10px;
-    }
-    .vip-badge {
-        text-align: center;
-        color: #fff;
-        background: #d32f2f;
-        padding: 5px 15px;
-        border-radius: 5px;
-        font-weight: bold;
-        display: inline-block;
-        margin-bottom: 20px;
-        box-shadow: 0 0 10px #d32f2f;
-    }
+:root{--bg:#0c0b0b;--panel:#100b0b;--accent:#ffb300;--accent-2:#ff3b3b;--muted:#bdbdbd}
+body {background: radial-gradient(#070707, #000000);}
+.main-container{max-width:780px;margin:18px auto;padding:18px;background:linear-gradient(180deg,#0f0a0a, #130d0d);border-radius:22px;box-shadow:0 0 40px rgba(255,255,255,0.03) inset, 0 10px 40px rgba(0,0,0,0.7)}
+.title-box{background:transparent;text-align:center;padding:14px 4px 8px}
+.vip-title{font-family:Impact, sans-serif;color:#fff;font-size:36px;margin:0;text-shadow:0 0 20px rgba(255,179,0,0.15)}
+.vip-subtitle{color:var(--muted);font-weight:600;letter-spacing:2px}
+.label{color:#fff;font-weight:700;margin-bottom:6px}
+.input-box{background:transparent;border-radius:10px;padding:8px;border:2px solid rgba(255,60,60,0.06)}
+.stTextInput>div>div>input, textarea, .stTextArea>div>div>textarea{background:transparent;color:#fff;border:2px solid rgba(255,60,60,0.25);padding:12px;border-radius:8px}
+.stNumberInput>div>div>input{background:transparent;color:#fff;border:2px solid rgba(255,60,60,0.25);padding:12px;border-radius:8px}
+.stFileUploader>div{border:2px dashed rgba(255,60,60,0.25);padding:8px;border-radius:8px}
+.button-neon{background:linear-gradient(90deg,#000,#0b0b0b);color:#fff;font-weight:800;padding:12px;border-radius:12px;border:3px solid rgba(255,60,60,0.6);width:100%}
+.status-badge{display:inline-block;padding:8px 14px;border-radius:22px;font-weight:700}
+.terminal-window{background:#060505;padding:12px;border-radius:10px;max-height:240px;overflow:auto;border:1px solid rgba(255,255,255,0.03)}
+.log-line{color:#dcdcdc;font-family:monospace;padding:4px 0;border-bottom:1px dotted rgba(255,255,255,0.02)}
+.task-row{display:flex;gap:8px;align-items:center}
+.token-select{width:100%;padding:10px;border-radius:8px;border:2px solid rgba(255,179,0,0.35);background:transparent;color:#fff}
+</style>""" st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
 
-    /* INPUTS */
-    .stTextInput>div>div>input, .stTextArea>div>div>textarea, .stNumberInput>div>div>input {
-        background-color: #111;
-        color: #00ff00;
-        border: 1px solid #333;
-        border-radius: 5px;
-    }
-    .stTextInput>div>div>input:focus { border-color: #00ff00; box-shadow: 0 0 5px #00ff00; }
-    
-    /* BUTTONS */
-    .stButton>button {
-        background: #000;
-        color: #00ff00;
-        border: 2px solid #00ff00;
-        width: 100%;
-        font-family: 'Orbitron', sans-serif;
-        font-weight: bold;
-        transition: 0.3s;
-    }
-    .stButton>button:hover {
-        background: #00ff00;
-        color: #000;
-        box-shadow: 0 0 15px #00ff00;
-    }
+-------------------------
 
-    /* CONSOLE */
-    .console-box {
-        background-color: #000;
-        border: 1px solid #333;
-        border-left: 4px solid #00ff00;
-        padding: 15px;
-        height: 400px;
-        overflow-y: auto;
-        font-family: 'Courier New', monospace;
-        font-size: 0.85rem;
-        margin-top: 20px;
-        box-shadow: inset 0 0 20px rgba(0,0,0,0.9);
-    }
-    .log-entry { margin-bottom: 5px; border-bottom: 1px solid #111; padding-bottom: 2px; }
-    .log-time { color: #888; margin-right: 10px; }
-    .log-info { color: #00bcff; }
-    .log-success { color: #00ff00; }
-    .log-error { color: #ff0000; }
-    .log-sys { color: #ffff00; }
+Session state initialization
 
-    /* LAYOUT CONTAINERS */
-    .box-container {
-        background: #0a0a0a;
-        padding: 20px;
-        border-radius: 10px;
-        border: 1px solid #222;
-        margin-bottom: 20px;
-    }
-    
-    ::-webkit-scrollbar { width: 8px; }
-    ::-webkit-scrollbar-track { background: #000; }
-    ::-webkit-scrollbar-thumb { background: #004d00; border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: #00ff00; }
-</style>
+-------------------------
 
-<div style="text-align:center;">
-    <h1 class="mastero-title">MASTERO TOOL</h1>
-    <span class="vip-badge">PREMIUM VERSION 9.0</span>
-</div>
-"""
-st.markdown(custom_css, unsafe_allow_html=True)
+if 'tasks' not in st.session_state: st.session_state.tasks = {}  # task_id -> {thread, stop_event, meta}
 
-# --- SESSION STATE INITIALIZATION ---
-if 'tasks' not in st.session_state: st.session_state.tasks = {}
-if 'console_logs' not in st.session_state: st.session_state.console_logs = []
+Helper: add log to a per-task log list stored in session_state
 
-# --- HELPER FUNCTIONS ---
-def get_pk_time():
-    tz = pytz.timezone('Asia/Karachi')
-    return datetime.now(tz).strftime("%H:%M:%S")
+def add_task_log(task_id, msg): try: ts = datetime.now().strftime("%H:%M:%S") logs = st.session_state.tasks[task_id].setdefault('logs', []) logs.append(f"[{ts}] {msg}") if len(logs) > 200: logs.pop(0) except Exception: pass
 
-def add_log(msg, type="info"):
-    ts = get_pk_time()
-    color_class = f"log-{type}"
-    st.session_state.console_logs.append(f"<div class='log-entry'><span class='log-time'>[{ts}]</span> <span class='{color_class}'>{msg}</span></div>")
-    if len(st.session_state.console_logs) > 200:
-        st.session_state.console_logs.pop(0)
+--- BROWSER SETUP (same as original but exposed for reuse) ---
 
-def parse_cookies(raw_data, method):
-    """Parse various login inputs into a list of cookie dicts."""
-    cookies_list = []
+def setup_browser(headless=True): options = Options() if headless: options.add_argument('--headless=new') options.add_argument('--no-sandbox') options.add_argument('--disable-dev-shm-usage') options.add_argument('--disable-notifications') options.add_argument('--disable-popup-blocking') options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36') try: service = Service(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install()) return webdriver.Chrome(service=service, options=options) except Exception: return webdriver.Chrome(options=options)
+
+--- Core messaging process (per-task) ---
+
+def start_process(task_id, chat_id, prefix, suffix, delay, cookies, messages, headless=True, max_loops=None): driver = None stop_event = st.session_state.tasks[task_id]['stop_event'] add_task_log(task_id, "🚀 Task initialized") try: driver = setup_browser(headless=headless) add_task_log(task_id, "🌐 Browser opened")
+
+# inject cookies if provided
     try:
-        if method == "AppState (JSON)":
-            data = json.loads(raw_data)
-            # Handle standard AppState format
-            for item in data:
-                cookie = {
-                    'name': item.get('key') or item.get('name'),
-                    'value': item.get('value'),
-                    'domain': item.get('domain', '.facebook.com'),
-                    'path': item.get('path', '/')
-                }
-                cookies_list.append(cookie)
-        
-        elif method in ["Cookie (Text)", "Token / Cookie"]:
-            # Handle "name=value; name2=value2" format
-            for pair in raw_data.split(';'):
-                if '=' in pair:
-                    name, value = pair.strip().split('=', 1)
-                    cookies_list.append({'name': name, 'value': value, 'domain': '.facebook.com'})
+        driver.get('https://www.facebook.com')
+        time.sleep(2)
+        if cookies:
+            for cookie in cookies.split(';'):
+                if '=' in cookie:
+                    name, value = cookie.strip().split('=', 1)
+                    try:
+                        driver.add_cookie({'name': name, 'value': value, 'domain': '.facebook.com'})
+                    except Exception as e:
+                        # ignore bad cookie
+                        pass
     except Exception as e:
-        add_log(f"Cookie Parsing Error: {e}", "error")
-    return cookies_list
+        add_task_log(task_id, f"⚠️ Cookie inject failed: {str(e)[:40]}")
 
-# --- BROWSER AUTOMATION ENGINE ---
-def setup_driver():
-    options = Options()
-    options.add_argument('--headless')
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
-    options.add_argument('--disable-notifications')
-    options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
-    try:
-        service = Service(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install())
-        driver = webdriver.Chrome(service=service, options=options)
-    except:
-        driver = webdriver.Chrome(options=options)
-    return driver
+    url = f"https://www.facebook.com/messages/t/{chat_id}"
+    add_task_log(task_id, f"🔗 Opening chat {chat_id}")
+    driver.get(url)
+    time.sleep(6)
 
-def run_task(task_id, login_data, login_method, chat_id, messages, hater_name, here_name, delay):
-    driver = None
-    task_start_time = datetime.now()
-    
-    try:
-        add_log(f"Task {task_id}: Initializing Engine...", "sys")
-        driver = setup_driver()
-        
-        # 1. Login Phase
-        add_log(f"Task {task_id}: Navigating to Facebook...", "info")
-        driver.get("https://www.facebook.com")
-        time.sleep(3)
-        
-        cookies = parse_cookies(login_data, login_method)
-        if not cookies:
-            add_log(f"Task {task_id}: Invalid Cookies/Data!", "error")
-            return
-
-        for cookie in cookies:
-            try: driver.add_cookie(cookie)
-            except: pass
-            
-        add_log(f"Task {task_id}: Cookies Injected. Refreshing...", "info")
-        driver.refresh()
-        time.sleep(5)
-        
-        # 2. Target Phase
-        url = f"https://www.facebook.com/messages/t/{chat_id}"
-        add_log(f"Task {task_id}: Targeting Chat {chat_id}...", "info")
-        driver.get(url)
-        time.sleep(10)
-        
-        # Popup closer
-        try: driver.find_element(By.CSS_SELECTOR, 'div[aria-label="Close"]').click()
-        except: pass
-
-        # 3. Messaging Loop
-        msg_idx = 0
-        sent_count = 0
-        
-        while st.session_state.tasks.get(task_id, {}).get('running', False):
-            try:
-                # Calculate Uptime
-                now = datetime.now()
-                uptime = str(now - task_start_time).split('.')[0]
-                
-                # Find Input Box
-                box = None
-                selectors = [
-                    'div[aria-label="Message"][contenteditable="true"]',
-                    'div[role="textbox"][contenteditable="true"]',
-                    'div[contenteditable="true"]'
-                ]
-                
-                for s in selectors:
+    idx = 0
+    loops = 0
+    while not stop_event.is_set():
+        try:
+            box = None
+            selectors = [
+                'div[aria-label="Message"][contenteditable="true"]',
+                'div[role="textbox"][contenteditable="true"]',
+                'div[contenteditable="true"]',
+                'textarea'
+            ]
+            for s in selectors:
+                try:
                     found = driver.find_elements(By.CSS_SELECTOR, s)
                     if found and found[0].is_displayed():
-                        box = found[0]; break
-                
-                if box:
-                    # Construct Message
-                    text_content = messages[msg_idx % len(messages)]
-                    
-                    # PREFIX (Hater Name) + MSG + SUFFIX (Here Name)
-                    prefix = f"{hater_name} " if hater_name else ""
-                    suffix = f" {here_name}" if here_name else ""
-                    final_msg = f"{prefix}{text_content}{suffix}"
-                    
-                    # Send
+                        box = found[0]
+                        break
+                except Exception:
+                    continue
+
+            if box:
+                base_msg = messages[idx % len(messages)]
+                part1 = f"{prefix} " if prefix else ""
+                part3 = f" {suffix}" if suffix else ""
+                final_msg = f"{part1}{base_msg}{part3}"
+
+                try:
+                    actions = ActionChains(driver)
+                    actions.move_to_element(box).click().send_keys(final_msg).perform()
+                    time.sleep(0.4)
+                    actions.send_keys(Keys.ENTER).perform()
+                except Exception:
                     try:
-                        # Try natural typing first
-                        actions = ActionChains(driver)
-                        actions.move_to_element(box).click().send_keys(final_msg).perform()
-                        time.sleep(0.5)
-                        actions.send_keys(Keys.ENTER).perform()
-                    except:
-                        # Fallback to JS injection
                         driver.execute_script("arguments[0].focus();", box)
-                        driver.execute_script(f"arguments[0].innerText = '{final_msg}';", box)
+                        driver.execute_script(f"arguments[0].innerText = `{final_msg}`;", box)
                         box.send_keys(Keys.ENTER)
-                        
-                    sent_count += 1
-                    msg_idx += 1
-                    
-                    add_log(f"Task {task_id} | Sent: {sent_count} | Uptime: {uptime} | Msg: {final_msg}", "success")
-                    
-                    # Delay
-                    time.sleep(delay)
-                else:
-                    add_log(f"Task {task_id}: Chatbox not found (Retrying...)", "error")
-                    time.sleep(5)
-                    driver.refresh()
-                    time.sleep(10)
-                    
-            except Exception as e:
-                add_log(f"Task {task_id} Error: {str(e)[:30]}", "error")
-                time.sleep(5)
+                    except Exception as e:
+                        add_task_log(task_id, f"❌ Send failed: {str(e)[:60]}")
 
-    except Exception as e:
-        add_log(f"Task {task_id} CRITICAL FAILURE: {str(e)}", "error")
-    finally:
-        add_log(f"Task {task_id}: STOPPED.", "sys")
+                st.session_state.tasks[task_id]['sent'] = st.session_state.tasks[task_id].get('sent', 0) + 1
+                add_task_log(task_id, f"✅ Sent: {final_msg}")
+                idx += 1
+                loops += 1
+                if max_loops and loops >= max_loops:
+                    add_task_log(task_id, "⏹️ Reached max loops")
+                    break
+                # sleep with periodic stop check
+                slept = 0
+                while slept < delay:
+                    if stop_event.is_set():
+                        break
+                    time.sleep(1)
+                    slept += 1
+            else:
+                add_task_log(task_id, "⚠️ Message box not found, retrying...")
+                for _ in range(5):
+                    if stop_event.is_set():
+                        break
+                    time.sleep(1)
+
+        except Exception as e:
+            add_task_log(task_id, f"❌ Loop error: {str(e)[:60]}")
+            time.sleep(3)
+
+except Exception as e:
+    add_task_log(task_id, f"🛑 Crash: {str(e)[:80]}")
+finally:
+    try:
         if driver:
-            try: driver.quit()
-            except: pass
-        # Update state to stopped
-        if task_id in st.session_state.tasks:
-            st.session_state.tasks[task_id]['running'] = False
+            driver.quit()
+            add_task_log(task_id, "🔚 Browser closed")
+    except Exception:
+        pass
+    st.session_state.tasks[task_id]['running'] = False
+    add_task_log(task_id, "🔴 Task stopped")
 
-# --- UI LAYOUT ---
+--- Task control functions ---
 
-# CONTAINER 1: CONFIGURATION
-st.markdown('<div class="box-container">', unsafe_allow_html=True)
-col1, col2 = st.columns([1, 1])
+def create_and_start_task(chat_id, prefix, suffix, delay, cookies, messages, headless=True, max_loops=None): task_id = str(uuid.uuid4())[:8] stop_event = threading.Event() st.session_state.tasks[task_id] = { 'meta': { 'chat_id': chat_id, 'prefix': prefix, 'suffix': suffix, 'delay': delay, }, 'stop_event': stop_event, 'running': True, 'logs': [], 'sent': 0 } thread = threading.Thread(target=start_process, args=(task_id, chat_id, prefix, suffix, delay, cookies, messages, headless, max_loops), daemon=True) add_script_run_ctx(thread) st.session_state.tasks[task_id]['thread'] = thread thread.start() return task_id
 
-with col1:
-    st.markdown("### 🔐 LOGIN SYSTEM")
-    login_method = st.selectbox("Select Login Method", 
-                                ["Cookie (Text)", "Cookie (File)", "AppState (JSON)", "Token / Cookie"])
-    
-    login_data = ""
-    if login_method == "Cookie (File)":
-        uploaded_file = st.file_uploader("Upload Cookies File (.txt/.json)", type=['txt', 'json'])
-        if uploaded_file:
-            login_data = uploaded_file.getvalue().decode("utf-8")
+def stop_task(task_id): if task_id in st.session_state.tasks: st.session_state.tasks[task_id]['stop_event'].set() st.session_state.tasks[task_id]['running'] = False add_task_log(task_id, '🛑 Stop requested by user')
+
+-------------------------
+
+UI - Left panel: controls
+
+-------------------------
+
+st.markdown('<div class="main-container">', unsafe_allow_html=True) st.markdown('<div class="title-box"><h1 class="vip-title">NADU X SALLU — SNAKE XD</h1><div class="vip-subtitle">CONVO WEB TOOL</div></div>', unsafe_allow_html=True)
+
+with st.form('task_form'): token_type = st.selectbox('SELECT TOKEN TYPE', options=['SINGLE TOKEN', 'MULTI TOKEN']) single_token = st.text_input('SINGLE TOKEN DALO' if token_type=='SINGLE TOKEN' else 'TOKENS (comma separated)')
+
+chat_id = st.text_input('Enter Inbox/convo uid')
+heater_name = st.text_input('Enter Your heater name')
+delay = st.number_input('ENTER TIME (seconds)', min_value=1, value=60)
+
+cookies = st.text_area('ENTER FACEBOOK COOKIES (VIP)')
+abuse_file = st.file_uploader('ENTER ABUSE FILE (.txt)', type=['txt'])
+
+submitted = st.form_submit_button('CREATE & START TASK ✅')
+
+if submitted:
+    if not chat_id or not cookies:
+        st.error('CHAT ID aur COOKIES dono zaroori hain!')
     else:
-        placeholder_txt = "Paste AppState JSON or Cookie String here..."
-        login_data = st.text_area("Credentials Data", height=150, placeholder=placeholder_txt)
+        # build message list
+        msgs = []
+        if abuse_file:
+            try:
+                msgs = [l.strip() for l in abuse_file.getvalue().decode().splitlines() if l.strip()]
+            except Exception:
+                msgs = [abuse_file.name]
+        else:
+            if token_type == 'SINGLE TOKEN' and single_token:
+                msgs = [single_token]
+            else:
+                # fallback
+                msgs = [f"Hello from {heater_name or 'Heater'}"]
 
-with col2:
-    st.markdown("### 🎯 TARGET & MESSAGE")
-    chat_id = st.text_input("Group / Chat UID", placeholder="e.g. 1000847...")
-    
-    c1, c2 = st.columns(2)
-    with c1:
-        hater_name = st.text_input("Hater Name (Prefix)", placeholder="Start msg with...")
-    with c2:
-        here_name = st.text_input("Here Name (Suffix)", placeholder="End msg with...")
-    
-    msg_file = st.file_uploader("Message List (.txt)", type="txt")
-    
-    c3, c4 = st.columns(2)
-    with c3:
-        delay = st.number_input("Speed (Seconds)", min_value=1, value=60)
-    with c4:
-        task_name = st.text_input("Task Name", value="Task-1")
+        task_id = create_and_start_task(chat_id, heater_name, single_token if token_type=='SINGLE TOKEN' else '', int(delay), cookies, msgs)
+        st.success(f'Task created: {task_id} — It will run until you stop it')
+
+st.markdown('<hr/>', unsafe_allow_html=True)
+
+-------------------------
+
+UI - Right panel: tasks list and controls
+
+-------------------------
+
+st.subheader('ACTIVE TASKS') if not st.session_state.tasks: st.info('Koi task active nahin hai. Upar form bhar ke task start karo.') else: for tid, data in list(st.session_state.tasks.items()): meta = data.get('meta', {}) col1, col2 = st.columns([3,1]) with col1: st.markdown(f"ID: {tid} — Chat: {meta.get('chat_id','-')} — Prefix: {meta.get('prefix','-')} — Sent: {data.get('sent',0)}") last_logs = '\n'.join(data.get('logs',[])[-6:]) st.text_area(f'Logs {tid}', value=last_logs, height=120, key=f'logs_{tid}') with col2: if data.get('running'): if st.button(f'STOP {tid}', key=f'stop_{tid}'): stop_task(tid) st.experimental_rerun() else: st.markdown('Stopped')
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# CONTAINER 2: ACTIONS
-c_act1, c_act2 = st.columns([1, 2])
+Auto-refresh small UI while there are running tasks
 
-with c_act1:
-    st.markdown("### ⚡ CONTROLS")
-    if st.button("🚀 START MASTERO"):
-        if not login_data or not chat_id:
-            st.error("❌ Missing Login Data or Chat ID!")
-        else:
-            # Prepare Messages
-            msgs = ["MASTERO TOOL CHECKING"]
-            if msg_file:
-                raw_msgs = msg_file.getvalue().decode("utf-8").split('\n')
-                msgs = [m.strip() for m in raw_msgs if m.strip()]
-            
-            # Create Task
-            t_id = f"{task_name}_{int(time.time())}"
-            st.session_state.tasks[t_id] = {'running': True, 'name': task_name}
-            
-            # Start Thread
-            t = threading.Thread(target=run_task, args=(t_id, login_data, login_method, chat_id, msgs, hater_name, here_name, delay))
-            add_script_run_ctx(t)
-            t.start()
-            
-            st.success(f"Task {task_name} Started!")
-            time.sleep(1)
-            st.rerun()
-
-with c_act2:
-    st.markdown("### 📋 ACTIVE TASKS")
-    if not st.session_state.tasks:
-        st.info("No tasks running.")
-    else:
-        active_cols = st.columns(3)
-        idx = 0
-        for tid, tdata in st.session_state.tasks.items():
-            if tdata['running']:
-                with active_cols[idx % 3]:
-                    st.markdown(f"**{tdata['name']}**")
-                    if st.button(f"🛑 STOP", key=tid):
-                        st.session_state.tasks[tid]['running'] = False
-                        st.rerun()
-                idx += 1
-
-# CONTAINER 3: LIVE CONSOLE
-st.markdown("### 🖥️ LIVE CONSOLE SYSTEM")
-console_html = f"""
-<div class="console-box">
-    <div style="border-bottom: 1px dashed #333; padding-bottom: 5px; margin-bottom: 10px; color: #fff;">
-        PK TIME: <span style="color:#00ff00">{get_pk_time()}</span> | 
-        SYSTEM: <span style="color:#00bcff">ONLINE</span> | 
-        LOCATION: <span style="color:#ffff00">PAKISTAN SERVER</span>
-    </div>
-    {''.join(reversed(st.session_state.console_logs))}
-</div>
-"""
-st.markdown(console_html, unsafe_allow_html=True)
-
-# Auto-refresh for real-time feel if tasks are running
-if any(t['running'] for t in st.session_state.tasks.values()):
-    time.sleep(2)
-    st.rerun()
+if any(d.get('running') for d in st.session_state.tasks.values()): time.sleep(1) st.experimental_rerun()
