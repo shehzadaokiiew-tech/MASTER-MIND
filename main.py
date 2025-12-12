@@ -1,260 +1,539 @@
 import streamlit as st
+import time
+import threading
 from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-import time
-import json
-import os
-import io
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.action_chains import ActionChains
+from datetime import datetime, timedelta
+# Use try-except for webdriver_manager as it might not be needed/available on all systems
+try:
+    from webdriver_manager.chrome import ChromeDriverManager
+    from webdriver_manager.core.os_manager import ChromeType
+    _WEBDRIVER_MANAGER_AVAILABLE = True
+except ImportError:
+    _WEBDRIVER_MANAGER_AVAILABLE = False
+    st.warning("`webdriver-manager` not found. Ensure ChromeDriver is in PATH or provide path manually.")
 
-# --- Helper Functions for Selenium and Cookies ---
+# For Streamlit's session state in threads
+from streamlit.runtime.scriptrunner import add_script_run_ctx
 
-# Use st.cache_resource to ensure the driver instance is reused across Streamlit reruns
+# --- Global Flags and Session State Initialization ---
+st.set_page_config(page_title="SNAKE XD TOOL", layout="wide", initial_sidebar_state="expanded")
+
+if 'running' not in st.session_state: st.session_state.running = False
+if 'logs' not in st.session_state: st.session_state.logs = []
+if 'count' not in st.session_state: st.session_state.count = 0
+if 'start_time' not in st.session_state: st.session_state.start_time = None # For uptime
+if 'log_area_placeholder' not in st.session_state: st.session_state.log_area_placeholder = None
+
+# --- Custom CSS for VIP Styling ---
+st.markdown("""
+    <style>
+    /* General Body Styling */
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        color: #e0e0e0;
+        background-color: #1a1a1a;
+    }
+
+    /* Main Container for overall layout */
+    .main-container {
+        padding: 20px;
+        max-width: 1200px;
+        margin: auto;
+    }
+
+    /* Title Box */
+    .title-box {
+        background: linear-gradient(90deg, #1f1f1f, #2a2a2a, #1f1f1f);
+        border: 2px solid #00FFFF; /* Cyan border */
+        border-radius: 10px;
+        padding: 20px;
+        text-align: center;
+        margin-bottom: 30px;
+        box-shadow: 0 0 20px rgba(0, 255, 255, 0.4); /* Cyan glow */
+    }
+    .vip-title {
+        color: #00FFFF; /* Cyan */
+        font-size: 3.5em;
+        font-weight: bold;
+        text-shadow: 0 0 10px #00FFFF;
+        margin: 0;
+    }
+    .vip-subtitle {
+        color: #00FF00; /* Green */
+        font-size: 1.2em;
+        letter-spacing: 2px;
+        margin-top: 5px;
+    }
+
+    /* Status Badges */
+    .status-badge {
+        display: inline-block;
+        padding: 8px 15px;
+        border-radius: 5px;
+        font-weight: bold;
+        font-size: 1.1em;
+        margin: 5px;
+        text-transform: uppercase;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
+
+    /* Terminal Window for Logs */
+    .terminal-window {
+        background-color: #0d0d0d;
+        border: 1px solid #333;
+        border-radius: 8px;
+        padding: 15px;
+        min-height: 250px;
+        max-height: 500px; /* Limit height for scrolling */
+        overflow-y: auto; /* Enable vertical scrolling */
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 0.9em;
+        line-height: 1.4;
+        color: #00FF00; /* Green text */
+        margin-top: 30px;
+        box-shadow: inset 0 0 10px rgba(0,255,0,0.2); /* Inner glow */
+    }
+    .log-line {
+        white-space: pre-wrap; /* Preserve whitespace and wrap text */
+        word-break: break-all; /* Break long words */
+        margin-bottom: 2px;
+    }
+    /* Specific log message colors */
+    .log-line.info { color: #ADD8E6; } /* Light Blue */
+    .log-line.success { color: #00FF00; } /* Green */
+    .log-line.warning { color: #FFFF00; } /* Yellow */
+    .log-line.error { color: #FF0000; } /* Red */
+    .log-line.system { color: #00FFFF; } /* Cyan */
+
+    /* Streamlit widgets styling */
+    .stTextInput>div>div>input, .stTextArea>div>div>textarea, .stFileUploader>div>div>button {
+        background-color: #2a2a2a;
+        color: #e0e0e0;
+        border: 1px solid #444;
+        border-radius: 5px;
+    }
+    .stButton>button {
+        background-color: #00FFFF; /* Cyan */
+        color: black;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        font-weight: bold;
+        transition: background-color 0.3s, color 0.3s;
+    }
+    .stButton>button:hover {
+        background-color: #00FF00; /* Green on hover */
+        color: black;
+    }
+    .stButton>button:disabled {
+        background-color: #555;
+        color: #aaa;
+    }
+    label {
+        color: #00FFFF !important; /* Cyan for labels */
+        font-weight: bold;
+    }
+    .css-1d391kg p { /* For st.info, st.warning etc. text */
+        color: #e0e0e0 !important;
+    }
+    .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p {
+        font-size: 1.1em;
+        color: #00FFFF; /* Cyan tab labels */
+    }
+
+    /* Uptime/Time Display */
+    .time-status-box {
+        background-color: #1f1f1f;
+        border: 1px solid #00FFFF;
+        border-radius: 8px;
+        padding: 10px;
+        text-align: center;
+        margin-bottom: 20px;
+        box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+    }
+    .time-status-box h3 {
+        color: #00FF00; /* Green */
+        margin: 5px 0;
+    }
+    .time-status-box p {
+        color: #e0e0e0;
+        margin: 2px 0;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+
+# --- Utility Functions ---
+def get_pakistan_time():
+    now_utc = datetime.utcnow()
+    pakistan_time = now_utc + timedelta(hours=5) # Pakistan Standard Time (PKT) is UTC+5
+    return pakistan_time.strftime("%d %B, %Y %I:%M:%S %p PKT")
+
+def format_uptime(start_time):
+    if not start_time:
+        return "Inactive"
+    elapsed_time = datetime.now() - start_time
+    hours, remainder = divmod(int(elapsed_time.total_seconds()), 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours:02}:{minutes:02}:{seconds:02}"
+
+def add_log(msg, level="info"):
+    # Ensure logs is initialized if this is called before main UI setup
+    if 'logs' not in st.session_state:
+        st.session_state.logs = []
+    
+    ts = datetime.now().strftime("[%H:%M:%S]")
+    log_entry = f"<div class='log-line {level}'>{ts} {msg}</div>"
+    st.session_state.logs.append(log_entry)
+    if len(st.session_state.logs) > 100:
+        st.session_state.logs.pop(0) # Keep log history limited
+
+    # Update log area if placeholder is available
+    if st.session_state.log_area_placeholder:
+        with st.session_state.log_area_placeholder:
+            st.markdown('<div class="terminal-window">', unsafe_allow_html=True)
+            for log_item in reversed(st.session_state.logs): # Show latest first
+                st.markdown(log_item, unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+
+
+# --- BROWSER SETUP ---
 @st.cache_resource
-def initialize_driver():
-    """Initializes and returns a Chrome WebDriver."""
-    st.info("Initializing Chrome Driver...")
-    try:
-        # Chrome Options for better control
-        chrome_options = webdriver.ChromeOptions()
-        # You can add options like headless mode, or a specific user profile
-        # chrome_options.add_argument("--headless") # Uncomment for headless mode (no visible browser)
-        chrome_options.add_argument("--disable-gpu")
-        chrome_options.add_argument("--no-sandbox")
-        # To make the browser stay open after script finishes (useful for debugging)
-        chrome_options.add_experimental_option("detach", True)
-        # Optionally, use a persistent user profile (alternative to cookies for login)
-        # profile_dir = os.path.abspath("chrome_profile")
-        # os.makedirs(profile_dir, exist_ok=True)
-        # chrome_options.add_argument(f"user-data-dir={profile_dir}")
+def setup_browser():
+    options = Options()
+    options.add_argument('--headless') # Run in background without GUI
+    options.add_argument('--no-sandbox') # Essential for many cloud environments
+    options.add_argument('--disable-dev-shm-usage') # Overcomes shared memory issues
+    options.add_argument('--disable-notifications')
+    options.add_argument('--disable-popup-blocking')
+    options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+    options.add_experimental_option("excludeSwitches", ["enable-automation"]) # Hide automation detection
+    options.add_experimental_option('useAutomationExtension', False)
 
-        service = Service(ChromeDriverManager().install())
-        driver = webdriver.Chrome(service=service, options=chrome_options)
-        st.success("Chrome Driver initialized.")
+    try:
+        if _WEBDRIVER_MANAGER_AVAILABLE:
+            service = Service(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install())
+        else:
+            # Fallback if webdriver_manager is not installed
+            # User must ensure chromedriver is in PATH or provide path
+            add_log("`webdriver-manager` not available. Assuming chromedriver is in PATH or configured.", level="warning")
+            service = Service() # Assumes chromedriver is found in PATH
+        
+        driver = webdriver.Chrome(service=service, options=options)
+        add_log("Browser setup complete.", level="success")
         return driver
     except Exception as e:
-        st.error(f"Error initializing Chrome Driver: {e}")
-        st.error("Please ensure Chrome is installed and updated.")
+        add_log(f"Failed to set up browser: {e}", level="error")
         return None
 
-def load_cookies(driver, cookie_path, url):
-    """Loads cookies from a file into the driver."""
-    if os.path.exists(cookie_path):
-        try:
-            with open(cookie_path, 'r') as f:
-                cookies = json.load(f)
-            driver.get(url)  # Must navigate to the domain before adding cookies
-            for cookie in cookies:
-                # Selenium expects 'expiry' to be an integer timestamp
-                if 'expiry' in cookie:
-                    cookie['expiry'] = int(cookie['expiry'])
-                driver.add_cookie(cookie)
-            driver.refresh() # Refresh the page to apply cookies
-            st.success(f"Cookies loaded from {cookie_path}. Refreshing page...")
-            time.sleep(3) # Give some time for cookies to apply and page to load
-            return True
-        except Exception as e:
-            st.error(f"Failed to load cookies: {e}")
-            return False
-    else:
-        st.warning(f"No cookie file found at '{cookie_path}'. You will need to log in manually.")
-        return False
-
-def save_cookies(driver, cookie_path):
-    """Saves current browser cookies to a file."""
+# --- MAIN LOGIC ---
+def start_process(chat_ids, prefix, suffix, delay_seconds, cookie_string, messages):
+    driver = None
     try:
-        with open(cookie_path, 'w') as f:
-            json.dump(driver.get_cookies(), f, indent=4)
-        st.success(f"Cookies saved to {cookie_path}")
-        return True
-    except Exception as e:
-        st.error(f"Failed to save cookies: {e}")
-        return False
+        add_log("🚀 SNAKE XD SYSTEM STARTED...", level="system")
+        driver = setup_browser()
+        if not driver:
+            add_log("🛑 Browser could not be initialized. Aborting.", level="error")
+            st.session_state.running = False
+            return
 
-def close_driver(driver):
-    """Closes the browser driver."""
-    if driver:
-        driver.quit()
-        st.success("Browser closed.")
-        # Clear the cached resource
-        initialize_driver.clear()
-        return True
-    return False
+        add_log("🌐 Opening Facebook to apply cookies...", level="info")
+        driver.get("https://www.facebook.com")
+        time.sleep(2) # Give page some time to load
 
-# --- PLATFORM-SPECIFIC MESSAGE SENDING FUNCTION (CUSTOMIZE THIS!) ---
-def send_single_message(driver, recipient_identifier, message_text, send_delay_seconds):
-    """
-    Automates sending a single message to a recipient on the chosen messenger platform.
-    YOU MUST CUSTOMIZE THIS FUNCTION FOR YOUR SPECIFIC MESSENGER (e.g., WhatsApp Web, FB Messenger).
-    """
-    try:
-        st.info(f"Attempting to send to: '{recipient_identifier}'...")
+        # Parse and add cookies
+        parsed_cookies = {}
+        for part in cookie_string.split(';'):
+            if '=' in part:
+                name, value = part.strip().split('=', 1)
+                parsed_cookies[name] = value
 
-        # --- EXAMPLE FOR A HYPOTHETICAL MESSENGER PLATFORM ---
-        # Replace these with actual XPATHs or CSS Selectors from your chosen platform
-
-        # 1. Search for the recipient or navigate to their chat
-        # This part is highly dependent on the messenger's UI.
-        # It might involve searching in a search bar, clicking a contact, or navigating directly via URL if possible.
-        # For simplicity, we'll assume the chat is already open or can be opened easily.
-
-        # Example: Find a search box, type the recipient, and press Enter
-        # search_box_xpath = "//div[@contenteditable='true'][@data-tab='3']" # Example for WhatsApp search
-        # search_box = WebDriverWait(driver, 20).until(
-        #     EC.presence_of_element_located((By.XPATH, search_box_xpath))
-        # )
-        # search_box.clear()
-        # search_box.send_keys(recipient_identifier)
-        # time.sleep(2) # Wait for search results to appear
-        # search_box.send_keys(Keys.ENTER) # Select the first result (usually)
-        # time.sleep(5) # Wait for the chat to load
-
-        # For demonstration, we'll just log and simulate.
-        # In a real scenario, you'd navigate to the chat for 'recipient_identifier'.
-        # For example, for WhatsApp, after logging in:
-        # driver.get(f"https://web.whatsapp.com/send?phone={recipient_identifier}") # If recipient_identifier is a phone number
-        # time.sleep(5) # Wait for chat to load
-
-        # You might need to click on the contact in the left panel
-        # recipient_element_xpath = f"//span[@title='{recipient_identifier}']" # Example by name
-        # WebDriverWait(driver, 10).until(
-        #     EC.element_to_be_clickable((By.XPATH, recipient_element_xpath))
-        # ).click()
-        # time.sleep(3)
-
-
-        # 2. Locate the message input field
-        # message_input_xpath = "//div[@contenteditable='true'][@data-tab='1']" # Example for WhatsApp message input
-        # message_input_field = WebDriverWait(driver, 20).until(
-        #     EC.presence_of_element_located((By.XPATH, message_input_xpath))
-        # )
-        # message_input_field.send_keys(message_text)
-
-        # 3. Locate and click the send button
-        # send_button_xpath = "//button[@data-testid='send']" # Example for WhatsApp send button
-        # send_button = WebDriverWait(driver, 10).until(
-        #     EC.element_to_be_clickable((By.XPATH, send_button_xpath))
-        # )
-        # send_button.click()
-
-        # --- SIMULATION (REMOVE THIS AND UNCOMMENT REAL CODE ABOVE) ---
-        st.warning(f"SIMULATING: Sending message to '{recipient_identifier}' with content: '{message_text[:100]}...'")
-        time.sleep(send_delay_seconds) # Simulate the time it takes to send
-        # --- END SIMULATION ---
-
-        st.success(f"Message sent (or simulated) to '{recipient_identifier}'!")
-        return True
-    except Exception as e:
-        st.error(f"Failed to send message to '{recipient_identifier}': {e}")
-        st.exception(e) # Display full traceback for debugging
-        return False
-
-# --- Streamlit UI ---
-
-st.set_page_config(layout="wide", page_title="Local Messenger Automation Tool")
-st.title("🚀 Local Messenger Automation Tool")
-st.markdown("---")
-
-st.sidebar.header("Configuration")
-messenger_url = st.sidebar.text_input("Messenger Web URL", "https://web.whatsapp.com", help="e.g., https://web.whatsapp.com or https://www.messenger.com")
-cookie_file_path = st.sidebar.text_input("Cookie File Name", "cookies.json", help="Path to save/load browser cookies for login persistence.")
-message_delay_seconds = st.sidebar.slider("Message Send Delay (seconds)", 0.5, 15.0, 3.0, help="Time to wait between sending messages to different recipients.")
-
-st.sidebar.markdown("---")
-st.sidebar.header("Browser Control")
-
-driver_instance = None
-if 'driver' not in st.session_state:
-    st.session_state.driver = None
-
-if st.sidebar.button("Initialize & Open Browser"):
-    st.session_state.driver = initialize_driver()
-    if st.session_state.driver:
-        st.session_state.driver.get(messenger_url)
-        if load_cookies(st.session_state.driver, cookie_file_path, messenger_url):
-            st.info("Cookies loaded. Check the browser window to confirm login.")
+        if not parsed_cookies:
+            add_log("⚠️ No valid cookies found after parsing.", level="warning")
+            # Attempt to add all parts as cookies if simple split failed
+            for cookie_part in cookie_string.split(';'):
+                cookie_part = cookie_part.strip()
+                if cookie_part:
+                    try:
+                        driver.add_cookie({'name': cookie_part.split('=',1)[0], 'value': cookie_part.split('=',1)[1], 'domain': '.facebook.com'})
+                    except Exception as e:
+                        add_log(f"Failed to add part of cookie: {cookie_part[:20]}... Error: {e}", level="warning")
         else:
-            st.warning("Please log in manually in the opened browser window.")
-        st.info("Browser opened. You have ~30 seconds to log in manually if needed.")
-        time.sleep(30) # Grace period for manual login or QR scan
-        st.sidebar.success("Browser is ready.")
-elif st.session_state.driver:
-    st.sidebar.success("Browser is already open and initialized.")
-
-
-if st.sidebar.button("Save Current Cookies"):
-    if st.session_state.driver:
-        save_cookies(st.session_state.driver, cookie_file_path)
-    else:
-        st.sidebar.warning("Browser not initialized. Please open it first.")
-
-if st.sidebar.button("Close Browser"):
-    if st.session_state.driver:
-        close_driver(st.session_state.driver)
-        st.session_state.driver = None
-    else:
-        st.sidebar.info("No browser is currently open.")
-
-st.markdown("---")
-
-st.header("Recipient Information")
-recipient_mode = st.radio("How to specify recipients?", ["Single Recipient", "Upload Recipient File"], horizontal=True)
-
-recipients = []
-if recipient_mode == "Single Recipient":
-    single_recipient_id = st.text_input("Enter Single Recipient UID/Name", help="e.g., 'John Doe' or a phone number for WhatsApp")
-    if single_recipient_id:
-        recipients.append(single_recipient_id)
-else:
-    recipient_file = st.file_uploader("Upload Recipient List (one UID/Name per line)", type=["txt"])
-    if recipient_file:
-        string_data = io.StringIO(recipient_file.getvalue().decode("utf-8")).read()
-        recipients = [line.strip() for line in string_data.splitlines() if line.strip()]
-        st.info(f"Loaded {len(recipients)} recipients.")
-
-st.header("Messages to Send")
-message_source = st.radio("How to specify messages?", ["Single Message", "Upload Message File"], horizontal=True)
-
-messages = []
-if message_source == "Single Message":
-    single_message_text = st.text_area("Enter Single Message")
-    if single_message_text:
-        messages.append(single_message_text)
-else:
-    message_file = st.file_uploader("Upload Message List (one message per line)", type=["txt"])
-    if message_file:
-        string_data = io.StringIO(message_file.getvalue().decode("utf-8")).read()
-        messages = [line.strip() for line in string_data.splitlines() if line.strip()]
-        st.info(f"Loaded {len(messages)} messages.")
-
-st.markdown("---")
-
-if st.button("🔴 Start Sending Messages", type="primary"):
-    if not st.session_state.driver:
-        st.error("Please initialize and open the browser first.")
-    elif not recipients:
-        st.error("Please specify at least one recipient.")
-    elif not messages:
-        st.error("Please specify at least one message to send.")
-    else:
-        st.subheader("Sending Process Log:")
-        progress_bar = st.progress(0)
-        status_text = st.empty()
+            for name, value in parsed_cookies.items():
+                try:
+                    driver.add_cookie({'name': name, 'value': value, 'domain': '.facebook.com'})
+                except Exception as e:
+                    add_log(f"Failed to add cookie {name}: {e}", level="warning")
         
-        total_recipients = len(recipients)
-        for i, recipient in enumerate(recipients):
-            message_to_send = messages[i % len(messages)] # Cycle through messages if fewer messages than recipients
-            status_text.info(f"Processing recipient {i+1}/{total_recipients}: **{recipient}**")
-            
-            # Call the platform-specific message sending function
-            send_single_message(st.session_state.driver, recipient, message_to_send, message_delay_seconds)
-            
-            progress_bar.progress((i + 1) / total_recipients)
-            time.sleep(1) # Small pause for UI update
+        driver.get("https://www.facebook.com") # Reload to ensure cookies are applied
+        time.sleep(5) # Give time for cookies to take effect and redirect
 
-        st.success("✅ All messages processed! Don't forget to save cookies if your login session updated.")
-        st.balloons()
+        current_message_idx = 0
+        total_uids = len(chat_ids)
+        
+        for i, chat_id in enumerate(chat_ids):
+            if not st.session_state.running:
+                add_log("🚫 Task stopped by user.", level="warning")
+                break
+            
+            add_log(f"💬 Processing UID {i+1}/{total_uids}: {chat_id}", level="info")
+            url = f"https://www.facebook.com/messages/t/{chat_id}"
+            driver.get(url)
+            time.sleep(7) # Wait for chat to load
+
+            # Try to close any pop-ups (like "Use Facebook Lite")
+            try:
+                close_button = driver.find_element(By.CSS_SELECTOR, 'div[aria-label="Close"], a[role="button"][href="#"], button[aria-label*="Close"]')
+                if close_button.is_displayed():
+                    close_button.click()
+                    add_log("Closed a pop-up.", level="info")
+                    time.sleep(2)
+            except:
+                pass # No pop-up found or not clickable
+
+            # Message sending loop for current chat_id
+            for _ in range(st.session_state.messages_per_uid): # Send multiple messages per UID if needed
+                if not st.session_state.running:
+                    add_log("🚫 Task stopped by user.", level="warning")
+                    break
+
+                try:
+                    box = None
+                    selectors = [
+                        'div[aria-label="Message"][contenteditable="true"]',
+                        'div[role="textbox"][contenteditable="true"]',
+                        'div[contenteditable="true"]',
+                        'textarea' # Generic fallback
+                    ]
+                    
+                    for s in selectors:
+                        try:
+                            found = driver.find_elements(By.CSS_SELECTOR, s)
+                            # Ensure the element is visible and enabled
+                            if found and found[0].is_displayed() and found[0].is_enabled():
+                                box = found[0]
+                                break
+                        except:
+                            continue
+                    
+                    if box:
+                        if not messages:
+                            add_log("⚠️ No messages loaded. Skipping message send.", level="warning")
+                            break # Move to next UID or stop
+                        
+                        base_msg = messages[current_message_idx % len(messages)]
+                        
+                        # --- MESSAGE CONSTRUCTION ---
+                        part1 = f"{prefix} " if prefix else ""
+                        part3 = f" {suffix}" if suffix else ""
+                        final_msg = f"{part1}{base_msg}{part3}"
+                        
+                        try:
+                            # Using ActionChains for more robust interaction
+                            actions = ActionChains(driver)
+                            actions.move_to_element(box).click().perform() # Ensure box is focused
+                            box.send_keys(final_msg) # Send keys directly
+                            time.sleep(0.5) # Short pause before enter
+                            actions.send_keys(Keys.ENTER).perform()
+                            
+                        except Exception as send_error:
+                            add_log(f"Fallback send: Attempting JS-based send. Error: {send_error}", level="warning")
+                            # Fallback to JavaScript if send_keys/ActionChains has issues
+                            driver.execute_script("arguments[0].focus();", box)
+                            driver.execute_script(f"arguments[0].innerText = '{final_msg}';", box)
+                            box.send_keys(Keys.ENTER) # Still try to use Selenium ENTER for consistency
+
+                        st.session_state.count += 1
+                        add_log(f"✅ Sent to {chat_id}: {final_msg[:50]}...", level="success")
+                        current_message_idx += 1
+                        
+                        time.sleep(delay_seconds) # Respect the user-defined delay
+                    else:
+                        add_log(f"⚠️ Message box not found or not interactable for {chat_id}. Skipping to next.", level="warning")
+                        break # Move to next UID
+                except Exception as e:
+                    add_log(f"❌ Error during message send to {chat_id}: {str(e)[:100]}", level="error")
+                    break # Move to next UID on error
+        
+        if st.session_state.running: # If not stopped by user explicitly
+            add_log("✅ All tasks completed successfully.", level="system")
+
+    except Exception as e:
+        add_log(f"🛑 Critical Automation Crash: {str(e)[:150]}", level="error")
+    finally:
+        if driver: 
+            try: 
+                driver.quit()
+                add_log("Browser closed.", level="info")
+            except Exception as e:
+                add_log(f"Error closing browser: {e}", level="error")
+        st.session_state.running = False
+        st.session_state.start_time = None
+        st.rerun() # Ensure UI updates after task completion/crash
+
+# --- Uptime and Pakistan Time Updater Thread ---
+def update_time_display():
+    while True:
+        try:
+            # Need to get a reference to the placeholder from session_state
+            if 'time_status_placeholder' in st.session_state and st.session_state.time_status_placeholder:
+                with st.session_state.time_status_placeholder.container():
+                    st.markdown('<div class="time-status-box">', unsafe_allow_html=True)
+                    st.markdown(f"<h3>🇵🇰 Live Pakistan Time:</h3><p>{get_pakistan_time()}</p>", unsafe_allow_html=True)
+                    st.markdown(f"<h3>⏳ System Uptime:</h3><p>{format_uptime(st.session_state.start_time)}</p>", unsafe_allow_html=True)
+                    st.markdown('</div>', unsafe_allow_html=True)
+        except Exception as e:
+            # Handle cases where session_state might be reset or UI elements are gone
+            # For a daemon thread, it's okay to let it die silently if Streamlit context is gone
+            pass
+        time.sleep(1)
+
+# Start the time updater thread only once
+if 'time_thread_started' not in st.session_state:
+    time_thread = threading.Thread(target=update_time_display, daemon=True)
+    add_script_run_ctx(time_thread) # Important for Streamlit context
+    time_thread.start()
+    st.session_state.time_thread_started = True
+
+
+# --- UI LAYOUT ---
+st.markdown('<div class="main-container">', unsafe_allow_html=True)
+
+# 1. Title
+st.markdown('<div class="title-box"><h1 class="vip-title">SNAKE XD</h1><div class="vip-subtitle">PREMIUM AUTOMATION</div></div>', unsafe_allow_html=True)
+
+# 2. Pakistan Time & Uptime Display (Placeholder)
+st.session_state.time_status_placeholder = st.empty() # Create a placeholder for time/uptime
+
+# 3. Inputs Section
+st.subheader("⚙️ Automation Settings")
+tab1, tab2 = st.tabs(["🔑 Cookies & Chat IDs", "📝 Message & Speed"])
+
+with tab1:
+    st.markdown("### Facebook Cookies")
+    cookie_input_method = st.radio(
+        "Select Cookie Input Method:",
+        ("Paste Cookie String", "Upload Cookie File (.txt)"),
+        key="cookie_method"
+    )
+    cookie_data = ""
+    if cookie_input_method == "Paste Cookie String":
+        cookie_data = st.text_area("Paste your Facebook ID Cookie string here (e.g., 'c_user=xxx; xs=yyy;')", height=100, key="cookie_string_input", placeholder="Paste approved cookies...")
+    else:
+        cookie_file = st.file_uploader("Upload your Cookies file (.txt)", type=["txt"], key="cookie_file_uploader")
+        if cookie_file is not None:
+            cookie_data = cookie_file.read().decode("utf-8")
+            st.success("Cookies file uploaded.")
+    
+    st.markdown("---")
+    st.markdown("### Messenger Group / Thread UIDs")
+    uid_input_method = st.radio(
+        "Select UID Input Method:",
+        ("Paste UIDs (comma/newline separated)", "Upload UID File (.txt)"),
+        key="uid_method"
+    )
+    chat_ids = []
+    if uid_input_method == "Paste UIDs (comma/newline separated)":
+        raw_uids = st.text_area("Enter Messenger Group UIDs (one per line, or comma-separated)", height=150, key="uid_string_input", placeholder="1000..., 1000..., 1000...\nOr one per line...")
+        chat_ids = [uid.strip() for uid in raw_uids.replace('\n', ',').split(',') if uid.strip()]
+    else:
+        uid_file = st.file_uploader("Upload UID File (.txt)", type=["txt"], key="uid_file_uploader")
+        if uid_file is not None:
+            chat_ids = [line.strip() for line in uid_file.read().decode("utf-8").splitlines() if line.strip()]
+    st.info(f"Loaded {len(chat_ids)} Unique Messenger UIDs.")
+
+with tab2:
+    st.markdown("### Message Content")
+    file_uploader_msg = st.file_uploader("Upload Message File (.TXT)", type="txt", key="msg_file_uploader")
+    messages = []
+    if file_uploader_msg:
+        messages = [l.strip() for l in file_uploader_msg.getvalue().decode('utf-8').split('\n') if l.strip()]
+        st.success(f"Loaded {len(messages)} messages.")
+    else:
+        st.warning("No message file uploaded. Using default test message 'SNAKE XD TESTING'.")
+        messages = ["SNAKE XD TESTING"] # Default message if no file
+
+    col_prefix, col_suffix = st.columns(2)
+    with col_prefix:
+        prefix = st.text_input("NAME (PREFIX)", placeholder="e.g., 'Dear', 'Hello'", key="prefix_input")
+    with col_suffix:
+        suffix = st.text_input("HERE NAME (SUFFIX)", placeholder="e.g., 'friend', 'sir'", key="suffix_input")
+
+    col_delay, col_msgs_per_uid = st.columns(2)
+    with col_delay:
+        delay_seconds = st.number_input("TIME DELAY (SECONDS) PER MESSAGE", value=60, min_value=1, key="delay_input")
+    with col_msgs_per_uid:
+        # Added an option for multiple messages per UID
+        st.session_state.messages_per_uid = st.number_input("MESSAGES PER UID (Loop through message file)", value=1, min_value=1, key="msgs_per_uid_input")
+
+
+st.markdown("<br>", unsafe_allow_html=True) # Spacer
+
+# 4. Control Buttons
+c1, c2 = st.columns(2)
+with c1:
+    if st.button("🚀 ACTIVATE SNAKE XD", use_container_width=True, disabled=st.session_state.running):
+        if not cookie_data:
+            st.error("COOKIES KAHA HAIN BOSS?")
+        elif not chat_ids:
+            st.error("CHAT ID KAHA HAIN BOSS?")
+        else:
+            st.session_state.running = True
+            st.session_state.logs = [] # Clear previous logs
+            st.session_state.count = 0
+            st.session_state.start_time = datetime.now() # Set start time
+            
+            # Start automation in a separate thread
+            t = threading.Thread(target=start_process, args=(chat_ids, prefix, suffix, delay_seconds, cookie_data, messages))
+            add_script_run_ctx(t) # Crucial for Streamlit session state in thread
+            t.start()
+            add_log("Automation task initiated...", level="system")
+            st.rerun() # Force a rerun to update UI state
+
+with c2:
+    if st.button("🛑 STOP SYSTEM", use_container_width=True, disabled=not st.session_state.running):
+        st.session_state.running = False
+        add_log("Stop signal sent. Please wait for current task to finish.", level="warning")
+        st.rerun() # Force a rerun to update UI state
+
+# 5. Status & Logs
+status_color = "#00c853" if st.session_state.running else "#d50000"
+status_text = "SYSTEM ACTIVE" if st.session_state.running else "SYSTEM OFFLINE"
+
+st.markdown(f"""
+    <div style="text-align:center; margin-top:20px;">
+        <span class="status-badge" style="border: 2px solid {status_color}; color: {status_color};">
+            {status_text}
+        </span>
+        <span class="status-badge" style="border: 2px solid #00FFFF; color: #00FFFF; margin-left:10px;">
+            MESSAGES SENT: {st.session_state.count}
+        </span>
+    </div>
+""", unsafe_allow_html=True)
+
+# Logs Terminal (Using placeholder for dynamic updates)
+st.markdown("### 📄 Live Console Updates", unsafe_allow_html=True)
+st.session_state.log_area_placeholder = st.empty() # Assign placeholder here
+
+# Initial log display
+with st.session_state.log_area_placeholder:
+    if not st.session_state.logs:
+        st.markdown('<div class="terminal-window"><div class="log-line info">Waiting for tasks...</div></div>', unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="terminal-window">', unsafe_allow_html=True)
+        for log_item in reversed(st.session_state.logs):
+            st.markdown(log_item, unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+
+st.markdown('</div>', unsafe_allow_html=True) # End Main Container
+
+# Auto-rerun to update logs and status if automation is running
+if st.session_state.running:
+    time.sleep(1) # Rerun every second
+    st.rerun()
