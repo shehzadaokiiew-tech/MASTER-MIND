@@ -14,14 +14,15 @@ import os
 from webdriver_manager.chrome import ChromeDriverManager
 
 # Initialize session state variables
-if 'running' not in st.session_state:
-    st.session_state.running = False
-if 'logs' not in st.session_state:
-    st.session_state.logs = []
-if 'task_id' not in st.session_state:
-    st.session_state.task_id = ""
-if 'message_count' not in st.session_state:
-    st.session_state.message_count = 0
+def init_session_state():
+    if 'running' not in st.session_state:
+        st.session_state.running = False
+    if 'logs' not in st.session_state:
+        st.session_state.logs = []
+    if 'task_id' not in st.session_state:
+        st.session_state.task_id = ""
+    if 'message_count' not in st.session_state:
+        st.session_state.message_count = 0
 
 # Custom CSS for VIP dark design with glowing elements
 def apply_custom_css():
@@ -118,17 +119,22 @@ def apply_custom_css():
     """, unsafe_allow_html=True)
 
 # Function to log messages with timestamp in Pakistan time
-def log_message(message, msg_type="INFO"):
+def log_message(message, msg_type="INFO", task_id=""):
     pakistan_tz = pytz.timezone('Asia/Karachi')
     timestamp = datetime.now(pakistan_tz).strftime("%Y-%m-%d %H:%M:%S")
-    log_entry = f"[{timestamp}] [{msg_type}] [{st.session_state.task_id}] {message}"
+    log_entry = f"[{timestamp}] [{msg_type}] [{task_id}] {message}"
+    
+    # Thread-safe logging
+    if 'logs' not in st.session_state:
+        st.session_state.logs = []
     st.session_state.logs.append(log_entry)
+    
     # Keep only the last 1000 logs to prevent memory issues
     if len(st.session_state.logs) > 1000:
         st.session_state.logs = st.session_state.logs[-1000:]
 
 # Function to initialize Chrome WebDriver
-def init_webdriver():
+def init_webdriver(task_id):
     chrome_options = Options()
     chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--no-sandbox")
@@ -145,11 +151,11 @@ def init_webdriver():
         driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
         return driver
     except Exception as e:
-        log_message(f"Error initializing WebDriver: {str(e)}", "ERROR")
+        log_message(f"Error initializing WebDriver: {str(e)}", "ERROR", task_id)
         return None
 
 # Function to login to Facebook using cookies
-def login_with_cookies(driver, cookies_str):
+def login_with_cookies(driver, cookies_str, task_id):
     try:
         driver.get("https://www.facebook.com/")
         time.sleep(3)
@@ -181,18 +187,18 @@ def login_with_cookies(driver, cookies_str):
         
         # Check if login was successful
         if "facebook.com/" in driver.current_url and "login" not in driver.current_url:
-            log_message("Successfully logged in to Facebook using cookies")
+            log_message("Successfully logged in to Facebook using cookies", "INFO", task_id)
             return True
         else:
-            log_message("Failed to login. Please check your cookies", "ERROR")
+            log_message("Failed to login. Please check your cookies", "ERROR", task_id)
             return False
                 
     except Exception as e:
-        log_message(f"Error during login: {str(e)}", "ERROR")
+        log_message(f"Error during login: {str(e)}", "ERROR", task_id)
         return False
 
 # Function to send a single message
-def send_message(driver, chat_uid, message):
+def send_message(driver, chat_uid, message, task_id):
     try:
         driver.get(f"https://www.facebook.com/messages/t/{chat_uid}")
         time.sleep(5)
@@ -250,55 +256,55 @@ def send_message(driver, chat_uid, message):
         time.sleep(3)  # Wait for message to send
         return True
     except TimeoutException:
-        log_message(f"Timeout while sending message to chat {chat_uid}", "ERROR")
+        log_message(f"Timeout while sending message to chat {chat_uid}", "ERROR", task_id)
         return False
     except NoSuchElementException as e:
-        log_message(f"Could not find message input for chat {chat_uid}: {str(e)}", "ERROR")
+        log_message(f"Could not find message input for chat {chat_uid}: {str(e)}", "ERROR", task_id)
         return False
     except Exception as e:
-        log_message(f"Error sending message: {str(e)}", "ERROR")
+        log_message(f"Error sending message: {str(e)}", "ERROR", task_id)
         return False
 
 # Main automation function
-def run_automation(cookies, chat_uid, prefix, suffix, delay, messages):
-    driver = init_webdriver()
+def run_automation(cookies, chat_uid, prefix, suffix, delay, messages, task_id):
+    driver = init_webdriver(task_id)
     if not driver:
-        log_message("Failed to initialize WebDriver. Aborting task.", "ERROR")
-        st.session_state.running = False
+        log_message("Failed to initialize WebDriver. Aborting task.", "ERROR", task_id)
         return
     
     # Login with cookies
-    if not login_with_cookies(driver, cookies):
+    if not login_with_cookies(driver, cookies, task_id):
         driver.quit()
-        st.session_state.running = False
         return
     
     # Send messages
+    message_count = 0
     try:
         for message in messages:
-            if not st.session_state.running:
+            # Check if still running
+            if 'running' not in st.session_state or not st.session_state.running:
                 break
                 
             formatted_message = f"{prefix}{message}{suffix}"
             
-            if send_message(driver, chat_uid, formatted_message):
-                st.session_state.message_count += 1
-                log_message(f"Sent message ({st.session_state.message_count}): {formatted_message}")
+            if send_message(driver, chat_uid, formatted_message, task_id):
+                message_count += 1
+                log_message(f"Sent message ({message_count}): {formatted_message}", "INFO", task_id)
             else:
-                log_message(f"Failed to send message: {formatted_message}", "ERROR")
+                log_message(f"Failed to send message: {formatted_message}", "ERROR", task_id)
             
             # Delay between messages
             time.sleep(delay)
     finally:
         driver.quit()
-        if st.session_state.running:
-            log_message(f"Task completed. Total messages sent: {st.session_state.message_count}")
+        if 'running' in st.session_state and st.session_state.running:
+            log_message(f"Task completed. Total messages sent: {message_count}", "INFO", task_id)
         else:
-            log_message(f"Task stopped by user. Messages sent: {st.session_state.message_count}")
-        st.session_state.running = False
+            log_message(f"Task stopped by user. Messages sent: {message_count}", "INFO", task_id)
 
 # Main Streamlit app
 def main():
+    init_session_state()
     apply_custom_css()
     
     st.title("VIP Facebook Messenger Bot")
@@ -378,11 +384,11 @@ def main():
                 st.session_state.task_id = f"TASK-{random.randint(1000, 9999)}"
                 st.session_state.message_count = 0
                 st.session_state.logs = []
-                log_message("Starting messaging task...")
+                log_message("Starting messaging task...", "INFO", st.session_state.task_id)
                 
                 # Run automation in a separate thread
                 thread = threading.Thread(target=run_automation, 
-                                          args=(cookies, chat_uid, prefix, suffix, delay, messages),
+                                          args=(cookies, chat_uid, prefix, suffix, delay, messages, st.session_state.task_id),
                                           daemon=True)
                 thread.start()
     
@@ -390,7 +396,8 @@ def main():
         if st.button("⏹️ Stop Messaging", use_container_width=True):
             if st.session_state.running:
                 st.session_state.running = False
-                log_message("Stopping messaging task...")
+                if st.session_state.task_id:
+                    log_message("Stopping messaging task...", "INFO", st.session_state.task_id)
             else:
                 st.warning("No task is currently running")
     
@@ -406,8 +413,9 @@ def main():
     log_container = st.container()
     with log_container:
         st.markdown('<div class="console-container">', unsafe_allow_html=True)
-        for log in st.session_state.logs[-100:]:  # Show last 100 logs
-            st.markdown(f'<div class="console-line">{log}</div>', unsafe_allow_html=True)
+        if 'logs' in st.session_state:
+            for log in st.session_state.logs[-100:]:  # Show last 100 logs
+                st.markdown(f'<div class="console-line">{log}</div>', unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
     
     # Auto-refresh for live logs
