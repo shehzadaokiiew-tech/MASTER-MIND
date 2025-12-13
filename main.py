@@ -130,15 +130,19 @@ def log_message(message, msg_type="INFO"):
 # Function to initialize Chrome WebDriver
 def init_webdriver():
     chrome_options = Options()
-    chrome_options.add_argument("--headless")  # Remove if you want to see the browser
+    chrome_options.add_argument("--headless=new")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--window-size=1920,1080")
-    chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+    chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    chrome_options.add_experimental_option('useAutomationExtension', False)
     
     try:
         driver = webdriver.Chrome(ChromeDriverManager().install(), options=chrome_options)
+        driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
         return driver
     except Exception as e:
         log_message(f"Error initializing WebDriver: {str(e)}", "ERROR")
@@ -148,44 +152,41 @@ def init_webdriver():
 def login_with_cookies(driver, cookies_str):
     try:
         driver.get("https://www.facebook.com/")
+        time.sleep(3)
         
-        # Add cookies to the driver
-        cookies_list = []
+        # Parse and add cookies
         if '\n' in cookies_str:
-            # Multiple cookies from file
             cookie_lines = cookies_str.strip().split('\n')
             for line in cookie_lines:
                 if ':' in line:
-                    parts = line.split(':')
-                    cookies_list.append({
+                    parts = line.split(':', 1)
+                    cookie = {
                         "name": parts[0].strip(),
-                        "value": parts[1].strip()
-                    })
+                        "value": parts[1].strip(),
+                        "domain": ".facebook.com"
+                    }
+                    driver.add_cookie(cookie)
         else:
-            # Single cookie string
             if ':' in cookies_str:
-                parts = cookies_str.split(':')
-                cookies_list.append({
+                parts = cookies_str.split(':', 1)
+                cookie = {
                     "name": parts[0].strip(),
-                    "value": parts[1].strip()
-                })
+                    "value": parts[1].strip(),
+                    "domain": ".facebook.com"
+                }
+                driver.add_cookie(cookie)
         
-        for cookie in cookies_list:
-            driver.add_cookie(cookie)
-        
-        # Refresh to apply cookies
         driver.refresh()
+        time.sleep(5)
         
-        # Wait for page to load after login
-        WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located((By.XPATH, "//div[@data-pagelet='ChatTab']"))
-        )
-        
-        log_message("Successfully logged in to Facebook using cookies")
-        return True
-    except TimeoutException:
-        log_message("Timeout while logging in. Please check your cookies", "ERROR")
-        return False
+        # Check if login was successful
+        if "facebook.com/" in driver.current_url and "login" not in driver.current_url:
+            log_message("Successfully logged in to Facebook using cookies")
+            return True
+        else:
+            log_message("Failed to login. Please check your cookies", "ERROR")
+            return False
+                
     except Exception as e:
         log_message(f"Error during login: {str(e)}", "ERROR")
         return False
@@ -193,27 +194,66 @@ def login_with_cookies(driver, cookies_str):
 # Function to send a single message
 def send_message(driver, chat_uid, message):
     try:
-        # Navigate to the chat
         driver.get(f"https://www.facebook.com/messages/t/{chat_uid}")
+        time.sleep(5)
         
-        # Wait for the message input field
-        message_box = WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.XPATH, "//div[@role='textbox']"))
-        )
+        # Try multiple selectors for message box
+        message_box = None
+        selectors = [
+            "//div[@role='textbox' and @data-testid='message-input']",
+            "//div[@role='textbox']",
+            "//div[contains(@class, 'notranslate') and @aria-label]",
+            "//div[@aria-label='Message']",
+            "//div[@aria-label='Type a message...']"
+        ]
         
-        # Type the message
+        for selector in selectors:
+            try:
+                message_box = WebDriverWait(driver, 10).until(
+                    EC.presence_of_element_located((By.XPATH, selector))
+                )
+                if message_box:
+                    break
+            except TimeoutException:
+                continue
+        
+        if not message_box:
+            raise NoSuchElementException("Message box not found with any selector")
+        
+        # Clear existing text and type new message
+        message_box.clear()
         message_box.send_keys(message)
         
-        # Find and click the send button
-        send_button = driver.find_element(By.XPATH, "//div[@aria-label='Press enter to send']")
-        send_button.click()
+        # Try multiple selectors for send button
+        send_button = None
+        send_selectors = [
+            "//div[@aria-label='Press enter to send']",
+            "//div[@aria-label='Send']",
+            "//div[contains(@aria-label, 'send')]",
+            "//div[@aria-label='Send Message']"
+        ]
         
+        for selector in send_selectors:
+            try:
+                send_button = driver.find_element(By.XPATH, selector)
+                if send_button:
+                    break
+            except NoSuchElementException:
+                continue
+        
+        if send_button:
+            send_button.click()
+        else:
+            # If no send button found, try pressing Enter
+            message_box.send_keys(u'\ue007')  # Enter key
+        
+        time.sleep(3)  # Wait for message to send
         return True
     except TimeoutException:
         log_message(f"Timeout while sending message to chat {chat_uid}", "ERROR")
         return False
-    except NoSuchElementException:
-        log_message(f"Could not find message input for chat {chat_uid}", "ERROR")
+    except NoSuchElementException as e:
+        log_message(f"Could not find message input for chat {chat_uid}: {str(e)}", "ERROR")
         return False
     except Exception as e:
         log_message(f"Error sending message: {str(e)}", "ERROR")
@@ -224,11 +264,13 @@ def run_automation(cookies, chat_uid, prefix, suffix, delay, messages):
     driver = init_webdriver()
     if not driver:
         log_message("Failed to initialize WebDriver. Aborting task.", "ERROR")
+        st.session_state.running = False
         return
     
     # Login with cookies
     if not login_with_cookies(driver, cookies):
         driver.quit()
+        st.session_state.running = False
         return
     
     # Send messages
@@ -340,23 +382,21 @@ def main():
                 
                 # Run automation in a separate thread
                 thread = threading.Thread(target=run_automation, 
-                                          args=(cookies, chat_uid, prefix, suffix, delay, messages))
+                                          args=(cookies, chat_uid, prefix, suffix, delay, messages),
+                                          daemon=True)
                 thread.start()
-                st.experimental_rerun()
     
     with col2:
         if st.button("⏹️ Stop Messaging", use_container_width=True):
             if st.session_state.running:
                 st.session_state.running = False
                 log_message("Stopping messaging task...")
-                st.experimental_rerun()
             else:
                 st.warning("No task is currently running")
     
     with col3:
         if st.button("🧹 Clear Logs", use_container_width=True):
             st.session_state.logs = []
-            st.experimental_rerun()
     
     # Console/logs section
     st.markdown("---")
@@ -373,7 +413,7 @@ def main():
     # Auto-refresh for live logs
     if st.session_state.running:
         time.sleep(1)
-        st.experimental_rerun()
+        st.rerun()
 
 if __name__ == "__main__":
     main()
