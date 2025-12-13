@@ -1,0 +1,6 @@
+Hello! This is a test message from the automation tool.
+How are you doing today?
+This is message number 3 in the test file.
+Testing the Facebook automation system.
+Final test message - hope this works perfectly!
+Thank you for testing this amazing tool.
