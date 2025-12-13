@@ -1,164 +1,379 @@
-# app.py
 import streamlit as st
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from webdriver_manager.chrome import ChromeDriverManager
-import threading
 import time
-import pytz
+import threading
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
+import random
 from datetime import datetime
+import pytz
+import os
+from webdriver_manager.chrome import ChromeDriverManager
 
-# =========================
-# GUI STYLING
-# =========================
-st.set_page_config(page_title="Premium FB Message Tool", layout="wide")
-st.markdown(
-    """
+# Initialize session state variables
+if 'running' not in st.session_state:
+    st.session_state.running = False
+if 'logs' not in st.session_state:
+    st.session_state.logs = []
+if 'task_id' not in st.session_state:
+    st.session_state.task_id = ""
+if 'message_count' not in st.session_state:
+    st.session_state.message_count = 0
+
+# Custom CSS for VIP dark design with glowing elements
+def apply_custom_css():
+    st.markdown("""
     <style>
-    body {
-        background-color: #000000;
+    /* Main background */
+    .stApp {
+        background-color: #080808;
         color: #0CC618;
     }
-    .stTextInput>div>div>input, .stTextArea>div>div>textarea {
+    
+    /* Glowing input boxes */
+    input, textarea, div.stTextArea textarea, div.stSelectbox div, div.stNumberInput input {
+        background-color: #111111 !important;
+        border: 2px solid;
+        border-radius: 8px;
+        color: #0CC618 !important;
+        box-shadow: 0 0 10px #ff0080, 0 0 20px #0088ff inset;
+        transition: box-shadow 0.3s ease-in-out;
+    }
+    
+    input:focus, textarea:focus, div.stTextArea textarea:focus {
+        box-shadow: 0 0 15px #ff0080, 0 0 25px #0088ff inset;
+        outline: none;
+    }
+    
+    /* Glowing buttons */
+    .stButton button {
+        background: linear-gradient(45deg, #ff0080, #0088ff);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 20px;
+        font-weight: bold;
+        box-shadow: 0 0 15px #ff0080, 0 0 25px #0088ff;
+        transition: all 0.3s ease;
+    }
+    
+    .stButton button:hover {
+        box-shadow: 0 0 20px #ff0080, 0 0 30px #0088ff;
+        transform: translateY(-2px);
+    }
+    
+    /* Console styling */
+    .console-container {
         background-color: #111111;
+        border: 2px solid #0088ff;
+        border-radius: 8px;
+        padding: 15px;
+        height: 300px;
+        overflow-y: auto;
+        box-shadow: 0 0 10px #0088ff inset;
+        font-family: 'Courier New', monospace;
+    }
+    
+    .console-line {
+        margin: 5px 0;
+        animation: fadeIn 0.5s;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    /* Headers */
+    h1, h2, h3 {
         color: #0CC618;
-        border: 2px solid red;
-        border-radius: 5px;
+        text-shadow: 0 0 10px #0088ff;
     }
-    .stButton>button {
-        background-color: red;
-        color: #ffffff;
-        border-radius: 5px;
-        height: 3em;
-        width: 100%;
+    
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+        width: 10px;
     }
-    .stFileUploader>div>div>input {
-        color: #0CC618;
+    
+    ::-webkit-scrollbar-track {
+        background: #080808;
     }
-    .console-panel {
+    
+    ::-webkit-scrollbar-thumb {
+        background: linear-gradient(#ff0080, #0088ff);
+        border-radius: 10px;
+    }
+    
+    /* File uploader styling */
+    .stFileUploader > div {
         background-color: #111111;
-        color: #0CC618;
-        height: 250px;
-        overflow-y: scroll;
-        padding: 10px;
-        border-radius: 5px;
-        border: 1px solid red;
-        font-family: monospace;
+        border: 2px dashed #0088ff;
+        border-radius: 8px;
+        box-shadow: 0 0 10px #0088ff;
     }
     </style>
-    """, unsafe_allow_html=True
-)
+    """, unsafe_allow_html=True)
 
-# =========================
-# INPUTS
-# =========================
-st.title("Premium Facebook Message Automation Tool")
+# Function to log messages with timestamp in Pakistan time
+def log_message(message, msg_type="INFO"):
+    pakistan_tz = pytz.timezone('Asia/Karachi')
+    timestamp = datetime.now(pakistan_tz).strftime("%Y-%m-%d %H:%M:%S")
+    log_entry = f"[{timestamp}] [{msg_type}] [{st.session_state.task_id}] {message}"
+    st.session_state.logs.append(log_entry)
+    # Keep only the last 1000 logs to prevent memory issues
+    if len(st.session_state.logs) > 1000:
+        st.session_state.logs = st.session_state.logs[-1000:]
 
-cookies = st.text_area("Facebook Cookies", placeholder="Paste your cookies here", height=150)
-token_option = st.radio("Token Option", ["Single Token", "Multiple Tokens (Upload File)"])
-if token_option == "Single Token":
-    access_token = st.text_input("Access Token")
-else:
-    token_file = st.file_uploader("Upload Token File (.txt)")
-
-thread_uid = st.text_input("Thread/Chat UID")
-prefix = st.text_input("Message Prefix")
-suffix = st.text_input("Message Suffix")
-delay = st.number_input("Delay per message (seconds)", min_value=1, value=3)
-repeat_count = st.number_input("Number of repetitions", min_value=1, value=1)
-message_file = st.file_uploader("Upload Message File (.txt)")
-
-# =========================
-# CONSOLE PANEL
-# =========================
-console = st.empty()
-
-def log(msg):
-    now = datetime.now(pytz.timezone("Asia/Karachi")).strftime("%H:%M:%S")
-    console.markdown(f"<div class='console-panel'>[{now}] {msg}</div>", unsafe_allow_html=True)
-
-# =========================
-# SELENIUM MESSAGE SENDER
-# =========================
-stop_flag = False  # Global stop flag
-
-def send_messages(cookies, thread_uid, messages, prefix, suffix, delay, task_id):
-    global stop_flag
-
-    # Setup Chrome Options
+# Function to initialize Chrome WebDriver
+def init_webdriver():
     chrome_options = Options()
-    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
-    chrome_options.add_argument("--disable-infobars")
-    chrome_options.add_argument("--start-maximized")
-    chrome_options.add_argument("--profile-directory=Default")
-    chrome_options.add_argument("--user-data-dir=selenium")
-    
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+    chrome_options.add_argument("--headless")  # Remove if you want to see the browser
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--window-size=1920,1080")
+    chrome_options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
     
     try:
-        driver.get("https://www.facebook.com")
-        time.sleep(5)
-        
-        # Set cookies if provided
-        if cookies:
-            driver.delete_all_cookies()
-            for cookie in cookies.split(";"):
-                name, value = cookie.strip().split("=", 1)
-                driver.add_cookie({"name": name, "value": value})
-            driver.refresh()
-            time.sleep(5)
-
-        # Navigate to chat
-        driver.get(f"https://www.facebook.com/messages/t/{thread_uid}")
-        time.sleep(5)
-
-        sent_count = 0
-
-        for i in range(repeat_count):
-            for msg in messages:
-                if stop_flag:
-                    log(f"Task {task_id} stopped manually.")
-                    driver.quit()
-                    return
-                final_msg = f"{prefix} {msg} {suffix}".strip()
-                try:
-                    # Message input box
-                    input_box = driver.find_element(By.XPATH, "//div[@aria-label='Message']")
-                    input_box.send_keys(final_msg)
-                    input_box.send_keys("\n")  # Send message
-                    sent_count += 1
-                    log(f"Task {task_id} | Sent ({sent_count}): {final_msg}")
-                    time.sleep(delay)
-                except Exception as e:
-                    log(f"Task {task_id} | Failed to send: {final_msg} | Error: {e}")
-
-        log(f"Task {task_id} completed. Total messages sent: {sent_count}")
+        driver = webdriver.Chrome(ChromeDriverManager().install(), options=chrome_options)
+        return driver
     except Exception as e:
-        log(f"Task {task_id} encountered an error: {e}")
+        log_message(f"Error initializing WebDriver: {str(e)}", "ERROR")
+        return None
+
+# Function to login to Facebook using cookies
+def login_with_cookies(driver, cookies_str):
+    try:
+        driver.get("https://www.facebook.com/")
+        
+        # Add cookies to the driver
+        cookies_list = []
+        if '\n' in cookies_str:
+            # Multiple cookies from file
+            cookie_lines = cookies_str.strip().split('\n')
+            for line in cookie_lines:
+                if ':' in line:
+                    parts = line.split(':')
+                    cookies_list.append({
+                        "name": parts[0].strip(),
+                        "value": parts[1].strip()
+                    })
+        else:
+            # Single cookie string
+            if ':' in cookies_str:
+                parts = cookies_str.split(':')
+                cookies_list.append({
+                    "name": parts[0].strip(),
+                    "value": parts[1].strip()
+                })
+        
+        for cookie in cookies_list:
+            driver.add_cookie(cookie)
+        
+        # Refresh to apply cookies
+        driver.refresh()
+        
+        # Wait for page to load after login
+        WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.XPATH, "//div[@data-pagelet='ChatTab']"))
+        )
+        
+        log_message("Successfully logged in to Facebook using cookies")
+        return True
+    except TimeoutException:
+        log_message("Timeout while logging in. Please check your cookies", "ERROR")
+        return False
+    except Exception as e:
+        log_message(f"Error during login: {str(e)}", "ERROR")
+        return False
+
+# Function to send a single message
+def send_message(driver, chat_uid, message):
+    try:
+        # Navigate to the chat
+        driver.get(f"https://www.facebook.com/messages/t/{chat_uid}")
+        
+        # Wait for the message input field
+        message_box = WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located((By.XPATH, "//div[@role='textbox']"))
+        )
+        
+        # Type the message
+        message_box.send_keys(message)
+        
+        # Find and click the send button
+        send_button = driver.find_element(By.XPATH, "//div[@aria-label='Press enter to send']")
+        send_button.click()
+        
+        return True
+    except TimeoutException:
+        log_message(f"Timeout while sending message to chat {chat_uid}", "ERROR")
+        return False
+    except NoSuchElementException:
+        log_message(f"Could not find message input for chat {chat_uid}", "ERROR")
+        return False
+    except Exception as e:
+        log_message(f"Error sending message: {str(e)}", "ERROR")
+        return False
+
+# Main automation function
+def run_automation(cookies, chat_uid, prefix, suffix, delay, messages):
+    driver = init_webdriver()
+    if not driver:
+        log_message("Failed to initialize WebDriver. Aborting task.", "ERROR")
+        return
+    
+    # Login with cookies
+    if not login_with_cookies(driver, cookies):
+        driver.quit()
+        return
+    
+    # Send messages
+    try:
+        for message in messages:
+            if not st.session_state.running:
+                break
+                
+            formatted_message = f"{prefix}{message}{suffix}"
+            
+            if send_message(driver, chat_uid, formatted_message):
+                st.session_state.message_count += 1
+                log_message(f"Sent message ({st.session_state.message_count}): {formatted_message}")
+            else:
+                log_message(f"Failed to send message: {formatted_message}", "ERROR")
+            
+            # Delay between messages
+            time.sleep(delay)
     finally:
         driver.quit()
+        if st.session_state.running:
+            log_message(f"Task completed. Total messages sent: {st.session_state.message_count}")
+        else:
+            log_message(f"Task stopped by user. Messages sent: {st.session_state.message_count}")
+        st.session_state.running = False
 
-# =========================
-# BUTTON ACTIONS
-# =========================
-if st.button("Start"):
-    if not cookies:
-        st.error("Please provide Facebook cookies!")
-    elif not thread_uid:
-        st.error("Please provide Thread/Chat UID!")
-    elif not message_file:
-        st.error("Please upload a message file!")
+# Main Streamlit app
+def main():
+    apply_custom_css()
+    
+    st.title("VIP Facebook Messenger Bot")
+    st.markdown("---")
+    
+    # Sidebar for task info
+    with st.sidebar:
+        st.header("Task Information")
+        if st.session_state.task_id:
+            st.markdown(f"**Task ID:** `{st.session_state.task_id}`")
+            st.markdown(f"**Messages Sent:** `{st.session_state.message_count}`")
+        else:
+            st.markdown("**Task ID:** `Not running`")
+            st.markdown("**Messages Sent:** `0`")
+        
+        pakistan_tz = pytz.timezone('Asia/Karachi')
+        current_time = datetime.now(pakistan_tz).strftime("%Y-%m-%d %H:%M:%S")
+        st.markdown(f"**Pakistan Time:** `{current_time}`")
+        
+        # Status indicator
+        if st.session_state.running:
+            st.markdown("🔴 **Status:** Running")
+        else:
+            st.markdown("🟢 **Status:** Idle")
+    
+    # Input section
+    st.header("Configuration")
+    
+    # Cookies input
+    st.subheader("Facebook Cookies")
+    cookies_option = st.radio("Cookie Input Method:", ["Single Cookie String", "Cookies File"])
+    
+    cookies = ""
+    if cookies_option == "Single Cookie String":
+        cookies = st.text_area("Enter your Facebook cookies (name:value)", height=100, 
+                               placeholder="c_user:1234567890\nxs:abcdefghijk1234567890...")
     else:
-        messages = [line.strip() for line in message_file.getvalue().decode("utf-8").splitlines() if line.strip()]
-        task_id = int(time.time())
-        stop_flag = False
-        threading.Thread(target=send_messages, args=(cookies, thread_uid, messages, prefix, suffix, delay, task_id), daemon=True).start()
-        log(f"Task {task_id} started. Total messages to send: {len(messages) * repeat_count}")
+        cookies_file = st.file_uploader("Upload cookies file", type=['txt'])
+        if cookies_file:
+            cookies = cookies_file.read().decode('utf-8')
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Chat Configuration")
+        chat_uid = st.text_input("Thread/Chat UID", placeholder="Enter chat ID")
+        delay = st.number_input("Delay Between Messages (seconds)", min_value=1, value=5)
+    
+    with col2:
+        st.subheader("Message Formatting")
+        prefix = st.text_input("Message Prefix", placeholder="Enter prefix")
+        suffix = st.text_input("Message Suffix", placeholder="Enter suffix")
+    
+    st.subheader("Message Content")
+    messages_file = st.file_uploader("Upload Messages File (.txt)", type=['txt'])
+    
+    messages = []
+    if messages_file:
+        content = messages_file.read().decode('utf-8')
+        messages = [msg.strip() for msg in content.split('\n') if msg.strip()]
+        st.success(f"Loaded {len(messages)} messages from file")
+    
+    # Control buttons
+    st.markdown("---")
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if st.button("🚀 Start Messaging", use_container_width=True):
+            if not cookies:
+                st.error("Please provide Facebook cookies")
+            elif not chat_uid:
+                st.error("Please enter a Chat UID")
+            elif not messages:
+                st.error("Please upload a messages file")
+            else:
+                st.session_state.running = True
+                st.session_state.task_id = f"TASK-{random.randint(1000, 9999)}"
+                st.session_state.message_count = 0
+                st.session_state.logs = []
+                log_message("Starting messaging task...")
+                
+                # Run automation in a separate thread
+                thread = threading.Thread(target=run_automation, 
+                                          args=(cookies, chat_uid, prefix, suffix, delay, messages))
+                thread.start()
+                st.experimental_rerun()
+    
+    with col2:
+        if st.button("⏹️ Stop Messaging", use_container_width=True):
+            if st.session_state.running:
+                st.session_state.running = False
+                log_message("Stopping messaging task...")
+                st.experimental_rerun()
+            else:
+                st.warning("No task is currently running")
+    
+    with col3:
+        if st.button("🧹 Clear Logs", use_container_width=True):
+            st.session_state.logs = []
+            st.experimental_rerun()
+    
+    # Console/logs section
+    st.markdown("---")
+    st.header("Live Console")
+    
+    # Scrollable log container
+    log_container = st.container()
+    with log_container:
+        st.markdown('<div class="console-container">', unsafe_allow_html=True)
+        for log in st.session_state.logs[-100:]:  # Show last 100 logs
+            st.markdown(f'<div class="console-line">{log}</div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Auto-refresh for live logs
+    if st.session_state.running:
+        time.sleep(1)
+        st.experimental_rerun()
 
-if st.button("Stop"):
-    stop_flag = True
-
-if st.button("Clear Logs"):
-    console.empty()
+if __name__ == "__main__":
+    main()
