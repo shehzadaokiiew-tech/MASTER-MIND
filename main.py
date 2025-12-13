@@ -1,214 +1,164 @@
+# app.py
 import streamlit as st
-import time
-import threading
 from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.action_chains import ActionChains
-from datetime import datetime
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
-from webdriver_manager.core.os_manager import ChromeType
-from streamlit.runtime.scriptrunner import add_script_run_ctx
+import threading
+import time
+import pytz
+from datetime import datetime
 
-st.set_page_config(page_title="SNAKE XD TOOL", layout="wide")
+# =========================
+# GUI STYLING
+# =========================
+st.set_page_config(page_title="Premium FB Message Tool", layout="wide")
+st.markdown(
+    """
+    <style>
+    body {
+        background-color: #000000;
+        color: #0CC618;
+    }
+    .stTextInput>div>div>input, .stTextArea>div>div>textarea {
+        background-color: #111111;
+        color: #0CC618;
+        border: 2px solid red;
+        border-radius: 5px;
+    }
+    .stButton>button {
+        background-color: red;
+        color: #ffffff;
+        border-radius: 5px;
+        height: 3em;
+        width: 100%;
+    }
+    .stFileUploader>div>div>input {
+        color: #0CC618;
+    }
+    .console-panel {
+        background-color: #111111;
+        color: #0CC618;
+        height: 250px;
+        overflow-y: scroll;
+        padding: 10px;
+        border-radius: 5px;
+        border: 1px solid red;
+        font-family: monospace;
+    }
+    </style>
+    """, unsafe_allow_html=True
+)
 
-def load_html():
+# =========================
+# INPUTS
+# =========================
+st.title("Premium Facebook Message Automation Tool")
+
+cookies = st.text_area("Facebook Cookies", placeholder="Paste your cookies here", height=150)
+token_option = st.radio("Token Option", ["Single Token", "Multiple Tokens (Upload File)"])
+if token_option == "Single Token":
+    access_token = st.text_input("Access Token")
+else:
+    token_file = st.file_uploader("Upload Token File (.txt)")
+
+thread_uid = st.text_input("Thread/Chat UID")
+prefix = st.text_input("Message Prefix")
+suffix = st.text_input("Message Suffix")
+delay = st.number_input("Delay per message (seconds)", min_value=1, value=3)
+repeat_count = st.number_input("Number of repetitions", min_value=1, value=1)
+message_file = st.file_uploader("Upload Message File (.txt)")
+
+# =========================
+# CONSOLE PANEL
+# =========================
+console = st.empty()
+
+def log(msg):
+    now = datetime.now(pytz.timezone("Asia/Karachi")).strftime("%H:%M:%S")
+    console.markdown(f"<div class='console-panel'>[{now}] {msg}</div>", unsafe_allow_html=True)
+
+# =========================
+# SELENIUM MESSAGE SENDER
+# =========================
+stop_flag = False  # Global stop flag
+
+def send_messages(cookies, thread_uid, messages, prefix, suffix, delay, task_id):
+    global stop_flag
+
+    # Setup Chrome Options
+    chrome_options = Options()
+    chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+    chrome_options.add_argument("--disable-infobars")
+    chrome_options.add_argument("--start-maximized")
+    chrome_options.add_argument("--profile-directory=Default")
+    chrome_options.add_argument("--user-data-dir=selenium")
+    
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+    
     try:
-        with open('index.html', 'r') as f: return f.read()
-    except: return ""
-
-st.markdown(load_html(), unsafe_allow_html=True)
-
-if 'running' not in st.session_state: st.session_state.running = False
-if 'logs' not in st.session_state: st.session_state.logs = []
-if 'count' not in st.session_state: st.session_state.count = 0
-
-def add_log(msg):
-    try:
-        if 'logs' not in st.session_state: st.session_state.logs = []
-        ts = datetime.now().strftime("%H:%M:%S")
-        st.session_state.logs.append(f"[{ts}] {msg}")
-        if len(st.session_state.logs) > 100: st.session_state.logs.pop(0)
-    except: pass
-
-# --- BROWSER SETUP ---
-def setup_browser():
-    options = Options()
-    options.add_argument('--headless')
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
-    options.add_argument('--disable-notifications')
-    options.add_argument('--disable-popup-blocking')
-    options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
-    try:
-        service = Service(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install())
-        return webdriver.Chrome(service=service, options=options)
-    except:
-        return webdriver.Chrome(options=options)
-
-# --- MAIN LOGIC (Updated for Suffix/Here Name) ---
-def start_process(chat_id, prefix, suffix, delay, cookies, messages):
-    driver = None
-    try:
-        add_log("🚀 SNAKE XD SYSTEM STARTED...")
-        driver = setup_browser()
-        
-        add_log("🌐 Opening Facebook...")
         driver.get("https://www.facebook.com")
-        time.sleep(4)
+        time.sleep(5)
         
-        try:
-            for cookie in cookies.split(';'):
-                if '=' in cookie:
-                    name, value = cookie.strip().split('=', 1)
-                    driver.add_cookie({'name': name, 'value': value, 'domain': '.facebook.com'})
-        except: pass
+        # Set cookies if provided
+        if cookies:
+            driver.delete_all_cookies()
+            for cookie in cookies.split(";"):
+                name, value = cookie.strip().split("=", 1)
+                driver.add_cookie({"name": name, "value": value})
+            driver.refresh()
+            time.sleep(5)
 
-        url = f"https://www.facebook.com/messages/t/{chat_id}"
-        add_log(f"💬 Opening Chat: {chat_id}")
-        driver.get(url)
-        time.sleep(10)
-        
-        try: driver.find_element(By.CSS_SELECTOR, 'div[aria-label="Close"]').click()
-        except: pass
-        
-        idx = 0
-        while st.session_state.running:
-            try:
-                box = None
-                selectors = [
-                    'div[aria-label="Message"][contenteditable="true"]',
-                    'div[role="textbox"][contenteditable="true"]',
-                    'div[contenteditable="true"]',
-                    'textarea'
-                ]
-                
-                for s in selectors:
-                    try:
-                        found = driver.find_elements(By.CSS_SELECTOR, s)
-                        if found and found[0].is_displayed():
-                            box = found[0]; break
-                    except: continue
-                
-                if box:
-                    base_msg = messages[idx % len(messages)]
-                    
-                    # --- MESSAGE CONSTRUCTION ---
-                    # Logic: Prefix + Message + Suffix (Here Name)
-                    part1 = f"{prefix} " if prefix else ""
-                    part3 = f" {suffix}" if suffix else ""
-                    final_msg = f"{part1}{base_msg}{part3}"
-                    
-                    try:
-                        actions = ActionChains(driver)
-                        actions.move_to_element(box).click().send_keys(final_msg).perform()
-                        time.sleep(0.5)
-                        actions.send_keys(Keys.ENTER).perform()
-                    except:
-                        driver.execute_script("arguments[0].focus();", box)
-                        driver.execute_script(f"arguments[0].innerText = '{final_msg}';", box)
-                        box.send_keys(Keys.ENTER)
+        # Navigate to chat
+        driver.get(f"https://www.facebook.com/messages/t/{thread_uid}")
+        time.sleep(5)
 
-                    st.session_state.count += 1
-                    add_log(f"✅ Sent: {final_msg}")
-                    idx += 1
+        sent_count = 0
+
+        for i in range(repeat_count):
+            for msg in messages:
+                if stop_flag:
+                    log(f"Task {task_id} stopped manually.")
+                    driver.quit()
+                    return
+                final_msg = f"{prefix} {msg} {suffix}".strip()
+                try:
+                    # Message input box
+                    input_box = driver.find_element(By.XPATH, "//div[@aria-label='Message']")
+                    input_box.send_keys(final_msg)
+                    input_box.send_keys("\n")  # Send message
+                    sent_count += 1
+                    log(f"Task {task_id} | Sent ({sent_count}): {final_msg}")
                     time.sleep(delay)
-                else:
-                    add_log("⚠️ Box hidden. Waiting...")
-                    time.sleep(5)
-            except Exception as e:
-                add_log(f"❌ Error: {str(e)[:20]}")
-                time.sleep(5)
+                except Exception as e:
+                    log(f"Task {task_id} | Failed to send: {final_msg} | Error: {e}")
+
+        log(f"Task {task_id} completed. Total messages sent: {sent_count}")
     except Exception as e:
-        add_log(f"🛑 Crash: {str(e)[:40]}")
+        log(f"Task {task_id} encountered an error: {e}")
     finally:
-        if driver: 
-            try: driver.quit()
-            except: pass
-        st.session_state.running = False
+        driver.quit()
 
-# --- UI LAYOUT (NEW ORDER) ---
-st.markdown('<div class="main-container">', unsafe_allow_html=True)
+# =========================
+# BUTTON ACTIONS
+# =========================
+if st.button("Start"):
+    if not cookies:
+        st.error("Please provide Facebook cookies!")
+    elif not thread_uid:
+        st.error("Please provide Thread/Chat UID!")
+    elif not message_file:
+        st.error("Please upload a message file!")
+    else:
+        messages = [line.strip() for line in message_file.getvalue().decode("utf-8").splitlines() if line.strip()]
+        task_id = int(time.time())
+        stop_flag = False
+        threading.Thread(target=send_messages, args=(cookies, thread_uid, messages, prefix, suffix, delay, task_id), daemon=True).start()
+        log(f"Task {task_id} started. Total messages to send: {len(messages) * repeat_count}")
 
-# 1. Title
-st.markdown('<div class="title-box"><h1 class="vip-title">SNAKE XD</h1><div class="vip-subtitle">PREMIUM AUTOMATION</div></div>', unsafe_allow_html=True)
+if st.button("Stop"):
+    stop_flag = True
 
-# 2. Cookies (First Box)
-cookies = st.text_area("FACEBOOK COOKIES (VIP)", height=100, placeholder="Paste your approved cookies here...")
-
-# 3. ID & Delay
-col1, col2 = st.columns(2)
-with col1:
-    chat_id = st.text_input("THREAD / CHAT UID", placeholder="1000...")
-with col2:
-    delay = st.number_input("TIME DELAY (SEC)", value=60, min_value=1)
-
-# 4. Name (Prefix) & Here Name (Suffix)
-col3, col4 = st.columns(2)
-with col3:
-    prefix = st.text_input("NAME (PREFIX)", placeholder="Start msg with...")
-with col4:
-    suffix = st.text_input("HERE NAME (END)", placeholder="End msg with...")
-
-# 5. File Upload
-file = st.file_uploader("MESSAGE FILE (.TXT)", type="txt")
-
-st.markdown("<br>", unsafe_allow_html=True)
-
-# 6. Buttons
-c1, c2 = st.columns(2)
-with c1:
-    if st.button("🚀 ACTIVATE SNAKE XD"):
-        if not st.session_state.running:
-            if cookies and chat_id:
-                msgs = ["SNAKE XD TESTING"]
-                if file: msgs = [l.strip() for l in file.getvalue().decode().split('\n') if l.strip()]
-                
-                st.session_state.running = True
-                st.session_state.logs = []
-                st.session_state.count = 0
-                
-                t = threading.Thread(target=start_process, args=(chat_id, prefix, suffix, delay, cookies, msgs))
-                add_script_run_ctx(t)
-                t.start()
-                st.rerun()
-            else:
-                st.error("COOKIES AUR CHAT ID KAHA HAI BOSS?")
-
-with c2:
-    if st.button("🛑 STOP SYSTEM"):
-        st.session_state.running = False
-        st.rerun()
-
-# 7. Status & Logs
-status_color = "#00c853" if st.session_state.running else "#d50000"
-status_text = "SYSTEM ACTIVE" if st.session_state.running else "SYSTEM OFFLINE"
-
-st.markdown(f"""
-    <div style="text-align:center; margin-top:20px;">
-        <span class="status-badge" style="border: 2px solid {status_color}; color: {status_color};">
-            {status_text}
-        </span>
-        <span class="status-badge" style="border: 2px solid #333; color: #333; margin-left:10px;">
-            SENT: {st.session_state.count}
-        </span>
-    </div>
-""", unsafe_allow_html=True)
-
-# Logs Terminal
-try:
-    if st.session_state.logs:
-        logs_html = '<div class="terminal-window">'
-        for log in reversed(st.session_state.logs):
-            logs_html += f'<div class="log-line">{log}</div>'
-        logs_html += '</div>'
-        st.markdown(logs_html, unsafe_allow_html=True)
-except: pass
-
-st.markdown('</div>', unsafe_allow_html=True) # End Container
-
-if st.session_state.running:
-    time.sleep(1)
-    st.rerun()
+if st.button("Clear Logs"):
+    console.empty()
