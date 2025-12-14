@@ -103,13 +103,14 @@ def send_facebook_messages_core(task_id: str, cookies_json_str: str, chat_id: st
         # 1. Add cookies (Retaining the original JSON handling logic)
         log(f'[🍪] Adding cookies to session...', task_id)
         
-        cookies_data = json.loads(cookies_json_str)
+        # This is where the pasted JSON string is loaded (Original logic kept)
+        cookies_data = json.loads(cookies_json_str) 
             
         driver.get('https://www.facebook.com/')
         time.sleep(3)
 
         for c in cookies_data:
-            # Need to handle potential KeyError if essential fields are missing (Original logic)
+            # Original logic: checks for mandatory cookie fields
             if 'name' in c and 'value' in c and 'domain' in c: 
                 driver.add_cookie(c)
         log('[✅] Cookies added.', task_id, 'SUCCESS')
@@ -414,4 +415,3 @@ else:
 st.markdown("---")
 st.markdown("<h3>📜 GLOBAL ACTIVITY CONSOLE</h3>", unsafe_allow_html=True)
 st.code('\n'.join(st.session_state.log_messages), language='text')
-
