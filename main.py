@@ -14,7 +14,7 @@ from selenium.common.exceptions import TimeoutException
 import uuid
 from typing import List
 
-# --- CONFIGURATION FILE PATHS (Files are now primarily used for initial content/messages) ---
+# --- CONFIGURATION FILE PATHS (Only for reading initial messages) ---
 MESSAGES_PATH = Path(__file__).parent / 'NP.txt'
 
 # --- Global State for Multiple Task Management ---
@@ -34,14 +34,14 @@ def log(message, task_id=None, type='INFO'):
         st.session_state.log_messages.pop(0)
     st.session_state.log_messages.append(log_entry)
     
-    # 2. Task-specific Log (if needed for the task console)
+    # 2. Task-specific Log 
     if task_id and task_id in st.session_state.active_tasks:
         task_logs = st.session_state.active_tasks[task_id]['logs']
         if len(task_logs) >= 50:
             task_logs.pop(0)
         task_logs.append(log_entry)
     
-    # Force rerun to update the logs/UI
+    # Force rerun to update the logs/UI (Streamlit's way to update UI from thread)
     st.rerun() 
 
 # --- CONFIGURATION & UTILITY FUNCTIONS ---
@@ -72,14 +72,13 @@ def read_messages_from_file():
             log(f'Error reading local messages file: {error}', type='ERROR')
     return messages
 
-# --- SELENIUM AUTOMATION LOGIC ---
+# --- SELENIUM AUTOMATION LOGIC (Working Core is retained) ---
 
 def setup_browser(task_id):
     """Sets up Chrome with required options."""
-    log(f'Setting up Chrome browser for Task {task_id}...', task_id, 'SETUP')
-    
+    log(f'[🔧] Setting up Chrome browser for Task {task_id}...', task_id, 'SETUP')
+    # ... (Rest of setup_browser function is unchanged) ...
     chrome_options = Options()
-    # Use 'new' headless mode
     chrome_options.add_argument('--headless=new')
     chrome_options.add_argument('--no-sandbox')
     chrome_options.add_argument('--disable-dev-shm-usage')
@@ -89,33 +88,29 @@ def setup_browser(task_id):
     
     driver = webdriver.Chrome(options=chrome_options)
     driver.set_window_size(1920, 1080)
-    log(f'Chrome browser setup completed.', task_id, 'SUCCESS')
+    log(f'[✅] Chrome browser setup completed.', task_id, 'SUCCESS')
     return driver
 
-def send_facebook_messages_core(task_id: str, cookie: str, chat_id: str, haters_name: str, last_name: str, delay_time: str, messages: List[str]):
+def send_facebook_messages_core(task_id: str, cookies_json_str: str, chat_id: str, haters_name: str, last_name: str, delay_time: str, messages: List[str]):
     """The main logic for navigating and sending messages, running in a thread."""
     
     task_state = st.session_state.active_tasks[task_id]
-    
     driver = None
     
     try:
         driver = setup_browser(task_id)
         
-        # 1. Add cookies (simplified parsing for single cookie string)
-        log(f'[🍪] Attempting to set cookie...', task_id)
-        # Assuming the pasted cookie is a simple key=value; key=value; string or a JSON array string
-        if cookie.startswith('['):
-            cookies_data = json.loads(cookie) # Assume valid JSON array of cookies
-        else:
-            # Simple conversion for key=value; format (not robust, but common)
-            cookies_data = [{'name': c.split('=', 1)[0].strip(), 'value': c.split('=', 1)[1].strip()} for c in cookie.split(';') if c.strip()]
+        # 1. Add cookies (Retaining the original JSON handling logic)
+        log(f'[🍪] Adding cookies to session...', task_id)
+        
+        cookies_data = json.loads(cookies_json_str)
             
         driver.get('https://www.facebook.com/')
         time.sleep(3)
 
         for c in cookies_data:
-            if 'name' in c and 'value' in c:
+            # Need to handle potential KeyError if essential fields are missing (Original logic)
+            if 'name' in c and 'value' in c and 'domain' in c: 
                 driver.add_cookie(c)
         log('[✅] Cookies added.', task_id, 'SUCCESS')
 
@@ -159,13 +154,12 @@ def send_facebook_messages_core(task_id: str, cookie: str, chat_id: str, haters_
                 pass
         
         log(f"Task {task_id} Stopped. Total Sent: {st.session_state.active_tasks[task_id]['count']}", 'SYSTEM', 'FINISHED')
-        # Final rerun to update UI state
         st.rerun() 
 
-def start_new_task(cookie, chat_id, haters_name, last_name, delay_time):
+def start_new_task(cookie_json_str, chat_id, haters_name, last_name, delay_time):
     """Initializes and starts a new task in a background thread."""
-    if not cookie or not chat_id or not haters_name or not delay_time:
-        log("All required fields must be filled: Cookie, Target UID, Name, and Speed.", 'SYSTEM', 'ERROR')
+    if not cookie_json_str or not chat_id or not haters_name or not delay_time:
+        log("All required fields must be filled: Cookie (JSON), Target UID, Name, and Speed.", 'SYSTEM', 'ERROR')
         return
 
     messages = read_messages_from_file()
@@ -182,13 +176,13 @@ def start_new_task(cookie, chat_id, haters_name, last_name, delay_time):
         'logs': [f"Task {task_id} created."],
         'count': 0,
         'start_time': time.time(),
-        'config': {'uid': chat_id, 'name': haters_name, 'speed': delay_time}
+        'config': {'uid': chat_id, 'name': haters_name, 'speed': delay_time, 'last_name': last_name}
     }
 
     # Start the core function in a new thread
     thread = threading.Thread(
         target=send_facebook_messages_core, 
-        args=(task_id, cookie, chat_id, haters_name, last_name, delay_time, messages), 
+        args=(task_id, cookie_json_str, chat_id, haters_name, last_name, delay_time, messages), 
         daemon=True
     )
     st.session_state.active_tasks[task_id]['thread'] = thread
@@ -207,6 +201,7 @@ def stop_task_by_id(task_id):
             log(f"Task ID {task_id} is already stopped.", 'SYSTEM', 'WARNING')
     else:
         log(f"Task ID {task_id} not found.", 'SYSTEM', 'ERROR')
+
 
 # --- STREAMLIT UI (Single Page Design) ---
 
@@ -231,7 +226,7 @@ h1 { color: #FFD700; text-align: center; text-shadow: 0 0 8px #FFD700; font-size
 h3 { color: #FFD700; text-transform: uppercase; font-size: 1.5em; }
 
 /* Input Fields & Selects */
-.stTextInput > div > div > input, .stSelectbox > div > div {
+.stTextInput > div > div > input, .stSelectbox > div > div, .stTextArea > div > div {
     background-color: #000;
     color: #FFF;
     border: 2px solid #FFD700; /* Yellow border for input */
@@ -310,10 +305,10 @@ st.markdown("<h3>⚙️ INPUT & PARAMETERS</h3>", unsafe_allow_html=True)
 col_input1, col_input2 = st.columns([1, 1])
 
 with col_input1:
-    # 1. COOKIE PASTE BOX
-    cookie_input = st.text_area(
-        "COOKIE PASTE BOX (SINGLE TOKEN DALO)",
-        placeholder="PASTE YOUR FULL COOKIE STRING HERE...",
+    # 1. COOKIE PASTE BOX (Accepts JSON Array String)
+    cookie_json_input = st.text_area(
+        "COOKIE PASTE BOX (SINGLE TOKEN DALO - JSON FORMAT)",
+        placeholder="PASTE YOUR COOKIE JSON ARRAY STRING HERE...",
         height=100
     )
     # 2. 1ST HATERS NAME
@@ -321,30 +316,33 @@ with col_input1:
         "1ST HATERS NAME",
         placeholder="[END TO END PRINCE HERE]"
     )
-    # 3. MESSAGE FILE OPTION (Using NP.txt as fixed file)
-    messages_list = read_messages_from_file()
-    if messages_list:
-        st.success(f"MSG FILE (NP.TXT) Loaded: {len(messages_list)} messages.")
-    else:
-        st.error("MSG FILE (NP.TXT) Empty or Missing.")
 
 with col_input2:
-    # 4. GROUP UID BOX
+    # 3. GROUP UID BOX
     chat_id_input = st.text_input(
         "TARGET UID BOX (GROUP/INBOX UID)",
         placeholder="9874135895969256"
     )
-    # 5. LAST HERE NAME BOX
+    # 4. LAST HERE NAME BOX
     last_name_input = st.text_input(
         "LAST HERE NAME BOX",
         placeholder="SECOND PREFIX NAME"
     )
-    # 6. SPEED BOX
+    # 5. SPEED BOX
     speed_input = st.text_input(
         "SPEED BOX (ENTER TIME ⏰ SECONDS)",
         placeholder="10",
         value="10"
     )
+
+# 6. MESSAGE FILE OPTION (Show Preview)
+st.markdown("---")
+st.markdown("<h3>MSG FILE (NP.TXT) PREVIEW</h3>", unsafe_allow_html=True)
+messages_list = read_messages_from_file()
+if messages_list:
+    st.success(f"MSG FILE (NP.TXT) Loaded: {len(messages_list)} messages.")
+else:
+    st.error("MSG FILE (NP.TXT) Empty or Missing.")
 
 st.markdown("---")
 
@@ -352,12 +350,19 @@ st.markdown("---")
 st.markdown("<h3>🚀 TASK CONTROL</h3>", unsafe_allow_html=True)
 
 if st.button("START RUN ✅", use_container_width=True):
-    start_new_task(cookie_input, chat_id_input, haters_name_input, last_name_input, speed_input)
+    start_new_task(cookie_json_input, chat_id_input, haters_name_input, last_name_input, speed_input)
 
 st.markdown("---")
 
 # --- 3. MULTIPLE TASK MANAGEMENT (Task Boxes) ---
 st.markdown("<h3>📊 ACTIVE TASKS</h3>", unsafe_allow_html=True)
+
+# Stop Task by ID input (as requested for manual stop)
+stop_id_input = st.text_input("ENTER STOP TASK 💥", placeholder="ENTER TASK ID TO STOP MANUALLY (E.G., T-SNAKE-A1B2)")
+if st.button("STOP TASK BY ID", key="manual_stop", type="secondary"):
+    stop_task_by_id(stop_id_input.strip())
+
+st.markdown("---")
 
 if st.session_state.active_tasks:
     
@@ -384,7 +389,7 @@ if st.session_state.active_tasks:
                 <div class="task-box">
                     <p style='margin:0;'>Status: <span class="{status_class}">{status_text}</span></p>
                     <p style='margin:0;'>Sent: <span style='color:#FFD700;'>{task_state['count']}</span> | Time: <span style='color:#FFD700;'>{time_display}</span></p>
-                    <p style='margin:0;'>UID: {task_state['config']['uid'][:8]}... | Speed: {task_state['config']['speed']}s</p>
+                    <p style='margin:0;'>UID: {task_state['config']['uid'][:8]}... | Name: {task_state['config']['name'][:10]}...</p>
                 </div>
                 """, unsafe_allow_html=True)
 
@@ -393,7 +398,7 @@ if st.session_state.active_tasks:
                     # STOP button for individual task
                     st.button("STOP", key=f"stop_{task_id}", on_click=stop_task_by_id, args=(task_id,), type="primary")
                 else:
-                    # DELETE/RESTART (Placeholder)
+                    # Placeholder for Delete/Restart buttons
                     st.button("DELETE", key=f"delete_{task_id}", disabled=True)
             
             # --- TASK-SPECIFIC CONSOLE ---
