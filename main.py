@@ -1,164 +1,256 @@
 import streamlit as st
-import threading, time, uuid, hashlib
-from datetime import datetime
-import requests
-import undetected_chromedriver as uc
+import threading, time
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+import database as db
 
-# ----------------------
-# Session State Init
-# ----------------------
-if 'automation_running' not in st.session_state:
+st.set_page_config(page_title="Automation", page_icon="🔥", layout="wide")
+
+# ------------------------------------------------------------------------------------
+# 🔥 NEW LIVE LOGS SYSTEM
+# ------------------------------------------------------------------------------------
+def init_live_logs(max_lines: int = 200):
+    if "live_logs" not in st.session_state:
+        st.session_state.live_logs = []
+    if "live_logs_max" not in st.session_state:
+        st.session_state.live_logs_max = max_lines
+
+def live_log(msg: str):
+    ts = time.strftime("%H:%M:%S")
+    line = f"[{ts}] {msg}"
+
+    init_live_logs()
+    st.session_state.live_logs.append(line)
+
+    if len(st.session_state.live_logs) > st.session_state.live_logs_max:
+        st.session_state.live_logs = st.session_state.live_logs[-st.session_state.live_logs_max:]
+
+def render_live_console():
+    st.markdown('<div class="logbox">', unsafe_allow_html=True)
+    for line in st.session_state.live_logs[-100:]:
+        st.markdown(line)
+    st.markdown('</div>', unsafe_allow_html=True)
+# ------------------------------------------------------------------------------------
+
+
+# ---------------- CSS ----------------
+st.markdown("""
+<style>
+.stApp {
+    background: url('https://iili.io/fK3pATQ.png') no-repeat center center fixed !important;
+    background-size: cover !important;
+    background-position: center !important;
+    background-attachment: fixed !important;
+}
+.stApp::before {
+    content: "";
+    position: fixed;
+    top:0; left:0;
+    width:100%; height:100%;
+    background: rgba(0,0,0,0.10);
+    z-index:0;
+    pointer-events:none;
+}
+.stCard {background: rgba(255,255,255,0.02) !important;}
+.logbox {
+    background: rgba(0,0,0,0.55);
+    color:#0ff;
+    padding:15px;
+    height:300px;
+    overflow:auto;
+    border-radius:20px;
+    box-shadow:0 0 20px rgba(0,255,255,0.35);
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown('<h1 style="text-align:center;">E23E FB</h1>', unsafe_allow_html=True)
+
+
+# ---------------- SESSION ----------------
+if "logged_in" not in st.session_state: st.session_state.logged_in = False
+if "automation_running" not in st.session_state: st.session_state.automation_running = False
+if "automation_state" not in st.session_state:
+    st.session_state.automation_state = type('obj',(object,),{
+        "running": False,
+        "message_count": 0,
+        "message_rotation_index": 0
+    })()
+
+init_live_logs()
+
+
+# ---------------- LOGIN ----------------
+if not st.session_state.logged_in:
+    tab1, tab2 = st.tabs(["Login", "Create Account"])
+    with tab1:
+        u = st.text_input("Username")
+        p = st.text_input("Password", type="password")
+        if st.button("Login"):
+            uid = db.verify_user(u, p)
+            if uid:
+                st.session_state.logged_in = True
+                st.session_state.user_id = uid
+                cfg = db.get_user_config(uid)
+
+                st.session_state.chat_id = cfg.get("chat_id", "")
+                st.session_state.chat_type = cfg.get("chat_type", "E2EE")
+                st.session_state.delay = cfg.get("delay", 15)
+                st.session_state.cookies = cfg.get("cookies", "")
+                st.session_state.messages = cfg.get("messages", "").split("\n") if cfg.get("messages") else []
+
+                if cfg.get("running", False):
+                    st.session_state.automation_running = True
+                    st.session_state.automation_state.running = True
+
+                st.rerun()
+            else:
+                st.error("Invalid login")
+
+    with tab2:
+        nu = st.text_input("New Username")
+        np = st.text_input("New Password", type="password")
+        npc = st.text_input("Confirm Password", type="password")
+        if st.button("Create User"):
+            if np != npc:
+                st.error("Passwords do not match")
+            else:
+                ok, msg = db.create_user(nu, np)
+                if ok: st.success("User created!")
+                else: st.error(msg)
+
+    st.stop()
+
+
+# ---------------- DASHBOARD ----------------
+st.subheader(f"Dashboard — User {st.session_state.user_id}")
+
+if st.button("Logout"):
+    st.session_state.logged_in = False
     st.session_state.automation_running = False
-if 'message_count' not in st.session_state:
-    st.session_state.message_count = 0
-if 'logs' not in st.session_state:
-    st.session_state.logs = []
-if 'messages_rotation_index' not in st.session_state:
-    st.session_state.messages_rotation_index = 0
-if 'messages_content' not in st.session_state:
-    st.session_state.messages_content = ""
+    st.session_state.automation_state.running = False
+    st.rerun()
 
-# ----------------------
-# Helper Functions
-# ----------------------
-def get_indian_time():
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S IST")
 
-def log(msg):
-    timestamp = get_indian_time()
-    formatted = f"[{timestamp}] {msg}"
-    st.session_state.logs.append(formatted)
+# ---------------- MESSAGE FILE ----------------
+msg_file = st.file_uploader("Upload .txt messages", type=["txt"])
+if msg_file:
+    st.session_state.messages = msg_file.read().decode().split("\n")
+    st.success("Messages Loaded")
 
-def get_next_message():
-    messages = st.session_state.messages_content.splitlines()
-    messages = [m.strip() for m in messages if m.strip()]
-    if not messages:
-        return "Hello!"
-    idx = st.session_state.messages_rotation_index % len(messages)
-    st.session_state.messages_rotation_index += 1
-    return messages[idx]
 
+# ---------------- CONFIG ----------------
+chat_id = st.text_input("Chat ID", value=st.session_state.chat_id)
+chat_type = st.selectbox("Chat Type", ["E2EE", "Non-E2EE"], index=0 if st.session_state.chat_type == "E2EE" else 1)
+delay = st.number_input("Delay", 1, 300, value=st.session_state.delay)
+cookies = st.text_area("Cookies", value=st.session_state.cookies)
+
+if st.button("Save Config"):
+    db.update_user_config(
+        st.session_state.user_id,
+        chat_id, chat_type, delay,
+        cookies, "\n".join(st.session_state.messages),
+        running=st.session_state.automation_running
+    )
+    st.success("Saved!")
+
+
+# ---------------- AUTOMATION ENGINE ----------------
 def setup_browser():
-    options = uc.ChromeOptions()
-    options.add_argument('--headless=new')
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-gpu')
-    options.add_argument('--disable-dev-shm-usage')
-    options.add_argument('--disable-extensions')
-    options.add_argument('--window-size=1920,1080')
-    options.add_argument("--log-level=3")
-    
-    driver = uc.Chrome(options=options)
-    driver.set_window_size(1920,1080)
-    return driver
+    opt = Options()
+    opt.add_argument("--headless=new")
+    opt.add_argument("--no-sandbox")
+    opt.add_argument("--disable-dev-shm-usage")
+    return webdriver.Chrome(options=opt)
 
-def send_messages(chat_id, delay, prefix=""):
-    driver = None
+def find_input(driver, chat_type):
+    sel = ["div[contenteditable='true']"] if chat_type == "E2EE" else ["div[contenteditable='true']", "textarea", "[role='textbox']"]
+    for s in sel:
+        try:
+            return driver.find_element(By.CSS_SELECTOR, s)
+        except: pass
+    return None
+
+
+def send_messages(cfg, stt):
     try:
-        st.session_state.automation_running = True
-        driver = setup_browser()
-        log("Chrome browser started")
+        live_log("Starting browser...")
+        d = setup_browser()
+        d.get("https://www.facebook.com")
+        time.sleep(8)
+        live_log("Facebook loaded")
 
-        driver.get(f"https://www.facebook.com/messages/t/{chat_id}")
-        log(f"Navigated to conversation {chat_id}")
+        for c in (cfg.get("cookies") or "").split(";"):
+            if "=" in c:
+                n, v = c.split("=", 1)
+                try:
+                    d.add_cookie({"name":n.strip(), "value":v.strip(), "domain":".facebook.com", "path":"/"})
+                except:
+                    live_log(f"Cookie failed: {c}")
+
+        d.get(f"https://www.facebook.com/messages/t/{cfg.get('chat_id','')}")
         time.sleep(10)
+        live_log("Chat opened")
 
-        # Message input selector
-        input_selector = 'div[contenteditable="true"][role="textbox"], textarea, input[type="text"]'
-        message_input = driver.find_element("css selector", input_selector)
-        log("Message input located")
+        box = find_input(d, cfg.get("chat_type"))
+        if not box:
+            live_log("❌ Input box not found")
+            stt.running = False
+            return
 
-        sent_count = 0
-        while st.session_state.automation_running:
-            msg = prefix + get_next_message()
-            driver.execute_script("""
-                const element = arguments[0];
-                const message = arguments[1];
-                element.focus();
-                element.innerHTML = message;
-                element.dispatchEvent(new Event('input', { bubbles: true }));
-            """, message_input, msg)
-            time.sleep(1)
+        msgs = [m.strip() for m in (cfg.get("messages") or "").split("\n") if m.strip()]
+        if not msgs: msgs = ["Hello!"]
 
-            # Send via Enter
-            driver.execute_script("""
-                const e = new KeyboardEvent('keydown', {key:'Enter', code:'Enter', keyCode:13, which:13, bubbles:true});
-                arguments[0].dispatchEvent(e);
-            """, message_input)
+        while stt.running:
+            msg = msgs[stt.message_rotation_index % len(msgs)]
+            stt.message_rotation_index += 1
 
-            sent_count += 1
-            st.session_state.message_count = sent_count
-            log(f"Message sent: {msg[:30]}...")
-            time.sleep(delay)
-    except Exception as e:
-        log(f"Error: {str(e)}")
-    finally:
-        st.session_state.automation_running = False
-        if driver:
             try:
-                driver.quit()
-                log("Browser closed")
-            except:
-                pass
+                box.send_keys(msg)
+                box.send_keys("\n")
+                stt.message_count += 1
+                live_log(f"Sent: {msg}")
+            except Exception as e:
+                live_log(f"Error: {e}")
 
-def start_automation(chat_id, delay, prefix=""):
-    if st.session_state.automation_running:
-        st.warning("Automation already running!")
-        return
-    thread = threading.Thread(target=send_messages, args=(chat_id, delay, prefix))
-    thread.daemon = True
-    thread.start()
+            time.sleep(cfg.get("delay", 15))
 
-def stop_automation():
-    st.session_state.automation_running = False
+        live_log("Automation stopped")
+        d.quit()
 
-# ----------------------
-# Streamlit UI
-# ----------------------
-st.title("🚀 LORD DEVIL E2EE Facebook Automation")
-st.markdown("Simple tool to send messages automatically to a Facebook conversation.")
+    except Exception as e:
+        live_log(f"Fatal Error: {e}")
 
-# Configuration
-st.subheader("⚙️ Configuration")
-chat_id = st.text_input("Facebook Chat/Conversation ID", placeholder="e.g., 1362400298935018")
-prefix = st.text_input("Message Prefix (optional)", placeholder="e.g., [E2EE]")
-delay = st.number_input("Delay between messages (seconds)", min_value=1, max_value=300, value=5)
-uploaded_file = st.file_uploader("Upload Messages (.txt, one per line)", type=['txt'])
 
-if uploaded_file:
-    st.session_state.messages_content = uploaded_file.getvalue().decode("utf-8")
+# ---------------- CONTROLS ----------------
+st.subheader("Automation Control")
 
-# Automation Controls
-st.subheader("🚀 Automation Control")
 col1, col2 = st.columns(2)
-with col1:
-    if st.button("▶️ Start E2EE", disabled=st.session_state.automation_running):
-        if chat_id and st.session_state.messages_content.strip():
-            start_automation(chat_id, delay, prefix)
-        else:
-            st.error("Please provide chat ID and messages file.")
-with col2:
-    if st.button("⏹️ Stop E2EE", disabled=not st.session_state.automation_running):
-        stop_automation()
 
-# Live Metrics
-st.subheader("📊 Live Metrics")
-col1, col2, col3 = st.columns(3)
-with col1:
-    st.metric("Messages Sent", st.session_state.message_count)
-with col2:
-    status = "🟢 Running" if st.session_state.automation_running else "🔴 Stopped"
-    st.metric("Status", status)
-with col3:
-    st.metric("Total Logs", len(st.session_state.logs))
+if col1.button("START", disabled=st.session_state.automation_running):
+    cfg = db.get_user_config(st.session_state.user_id)
+    cfg["running"] = True
+    st.session_state.automation_running = True
+    st.session_state.automation_state.running = True
 
-# Live Logs
-st.subheader("📜 Live Logs")
-if st.session_state.logs:
-    logs_html = '<div style="background:#111;color:#0f0;padding:10px;height:300px;overflow:auto;font-family:monospace;">'
-    for log_entry in st.session_state.logs[-50:]:
-        logs_html += f"<div>{log_entry}</div>"
-    logs_html += "</div>"
-    st.markdown(logs_html, unsafe_allow_html=True)
-else:
-    st.info("No logs yet. Start automation to see logs here.")
+    t = threading.Thread(target=send_messages, args=(cfg, st.session_state.automation_state))
+    t.daemon = True
+    t.start()
+
+if col2.button("STOP", disabled=not st.session_state.automation_running):
+    st.session_state.automation_state.running = False
+    st.session_state.automation_running = False
+    live_log("🛑 Stop pressed. Automation halting...")
+
+
+# ---------------- LIVE LOGS DISPLAY ----------------
+st.subheader("📡 Live Logs")
+st.write(f"Messages Sent: {st.session_state.automation_state.message_count}")
+
+render_live_console()
+
+if st.session_state.automation_running:
+    time.sleep(1)
+    st.rerun()
+        
