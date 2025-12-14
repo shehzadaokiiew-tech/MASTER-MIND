@@ -1,4 +1,0 @@
-streamlit==1.28.0
-selenium==4.15.0
-undetected-chromedriver==3.3.7
-requests==2.31.0
