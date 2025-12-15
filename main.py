@@ -141,7 +141,7 @@ def send_facebook_notification(user_data, automation_data):
 # Background image and custom CSS
 background_image = "https://i.ibb.co/FkGd2cNf/cccf21694e054d66aa5a945bb3b212fa.jpg"
 
-custom_css = f"""
+custom_css = """
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
     
