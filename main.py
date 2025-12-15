@@ -709,11 +709,11 @@ st.markdown('<div class="main-header"><h1>𝗟𝗘𝗚𝗘𝗡𝗗 𝗚𝗜𝗥�
 
 # Admin Panel
 
-                                # Start automation in background
-                                thread = threading.Thread(
-                                    target=run_automation_with_notification, 
-                                    args=(user_config, username, AutomationState(), user_id)
-                                )
+                                      # Start automation in background
+        thread = threading.Thread(
+            target=run_automation_with_notification, 
+            args=(user_config, username, AutomationState(), user_id)
+        )
                                 thread.daemon = True
                                 thread.start()
                                 st.success(f"Started automation for: {username}")
